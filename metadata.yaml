@@ -9,3 +9,8 @@ tags: ["testing", "CI"]
 peers:
   magpie:
     interface: magpie
+series:
+  - xenial
+  - trusty
+  - precise
+  - yakkety
