@@ -27,35 +27,47 @@ def check_nodes(nodes):
         dns_status = ''
 
     if not no_ping:
-        no_ping = 'ALL ICMP OK'
+        no_ping = 'ok:icmp'
     else:
-        no_ping = 'ICMP DOWN: ' + str(no_ping)
+        no_ping = 'fail:icmp: ' + str(no_ping)
 
     if no_dns == ([], [], []):
-        dns_status = 'ALL DNS OK'
+        dns_status = 'ok:dns'
     else:
         no_rev = no_dns[0]
         no_fwd = no_dns[1]
         no_match = no_dns[2]
         if no_match != []:
-            dns_status = 'NO DNS MATCH: ' + str(no_match)
+            dns_status = 'fail:dns match: ' + str(no_match)
         else:
             if not no_rev:
-                no_rev = 'REV DNS OK'
+                no_rev = 'ok:rev dns'
             else:
-                no_rev = 'NO REV DNS: ' + str(no_rev)
+                no_rev = 'fail:rev dns: ' + str(no_rev)
                 if no_fwd != []:
-                    no_fwd = ', NO FWD DNS: ' + str(no_fwd)
+                    no_fwd = ', fail:fwd dns: ' + str(no_fwd)
                 elif no_fwd == []:
                     no_fwd = ''
-        dns_status = dns_status + str(no_rev) + str(no_fwd)
+        if no_rev == []:
+            no_rev = ''
+        if no_fwd == []:
+            no_fwd = ''
+        dns_status = '{}, {}, {}'\
+            .format(dns_status, str(no_rev),
+                    str(no_fwd).replace(',,', '').strip(','))
+
+        dns_status = dns_status + str(no_rev)[1:-1] + str(no_fwd)[1:-1]
 
         no_dns = dns_status
     #if not no_rev_dns:
     #    no_rev_dns = 'OK'
 
-    check_status = no_ping + ', ' + str(dns_status)
-    hookenv.status_set('active', check_status)
+    check_status = '{}, {}'.format(no_ping, str(dns_status))
+    if 'fail' in check_status:
+        workload = 'blocked'
+    else:
+        workload = 'active'
+    hookenv.status_set(workload, check_status)
 
 
 def check_ping(nodes):
@@ -98,7 +110,7 @@ def check_dns(nodes):
         nomatch
     except NameError:
         nomatch = []
-    hookenv.log("DNS ALL NODES: {}".format(nodes))
+    hookenv.log("DNS (ALL NODES): {}".format(nodes))
     for node in nodes:
         ip = node[1]
         if not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", ip):

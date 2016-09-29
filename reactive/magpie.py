@@ -5,7 +5,7 @@ from charms.layer.magpie_tools import check_nodes
 
 @when_not('magpie.joined')
 def no_peers():
-    hookenv.status_set('active', 'Waiting for peers to join...')
+    hookenv.status_set('waiting', 'Waiting for peers...')
     
 @when('magpie.joined')
 def check_peers_joined(magpie):
