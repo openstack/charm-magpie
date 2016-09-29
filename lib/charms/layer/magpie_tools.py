@@ -150,7 +150,8 @@ def check_dns(nodes):
                 if ip != forward:
                     if not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$",
                                     forward):
-                        forward = "Can not resolve hostname to IP"
+                        forward = "Can not resolve hostname to IP {}"\
+                                  .format(repr(forward))
                     hookenv.log("Original IP and Forward MATCH FAILED for"
                                 " unit_id: {}, Original: {}, Forward: {}"
                                 .format(unit_id, ip, forward), 'ERROR')
