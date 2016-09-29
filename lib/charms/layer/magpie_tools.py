@@ -41,9 +41,9 @@ def check_nodes(nodes):
             dns_status = 'dns match: failed: ' + str(no_match)
         else:
             if not no_rev:
-                no_rev = 'rev dns: ok'
+                no_rev = ', rev dns: ok'
             else:
-                no_rev = 'rev dns: failed: ' + str(no_rev)
+                no_rev = ', rev dns: failed: ' + str(no_rev)
                 if no_fwd != []:
                     no_fwd = ', fwd dns: failed: ' + str(no_fwd)
                 elif no_fwd == []:
@@ -52,13 +52,8 @@ def check_nodes(nodes):
             no_rev = ''
         if no_fwd == []:
             no_fwd = ''
-        dns_status = '{}, {}, {}'\
-            .format(dns_status, str(no_rev),
-                    str(no_fwd).replace(',,', '').strip(','))
-
-        dns_status = dns_status + str(no_rev)[1:-1] + str(no_fwd)[1:-1]
-
-        no_dns = dns_status
+        dns_status = '{} {} {}'\
+            .format(dns_status, str(no_rev), str(no_fwd))
 
     check_status = '{}, {}'.format(no_ping, str(dns_status))
     if 'failed' in check_status:
@@ -173,7 +168,7 @@ def check_dns(nodes):
 
 
 def reverse_dns(input, dns_server, tries, timeout):
-    cmd = '/usr/bin/dig -x ' + input + ' +short +time={} +tries={}'\
+    cmd = '/usr/bin/dig -x ' + input + ' +short +tries={} +time={}'\
         .format(tries, timeout)
     if dns_server:
         cmd = '{} @{}'.format(cmd, dns_server)
@@ -192,7 +187,7 @@ def reverse_dns(input, dns_server, tries, timeout):
 
 
 def forward_dns(input, dns_server, tries, timeout):
-    cmd = '/usr/bin/dig ' + input + ' +short +time={} +tries={}'\
+    cmd = '/usr/bin/dig ' + input + ' +short +tries={} +time={}'\
         .format(tries, timeout)
     if dns_server:
         cmd = '{} @{}'.format(cmd, dns_server)
