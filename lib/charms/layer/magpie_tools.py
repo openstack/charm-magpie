@@ -123,9 +123,6 @@ def check_dns(nodes):
         hookenv.log("Reverse lookup for ip: {}, node: {},"
                     " unit_id: {}".format(ip, node[0], unit_id), 'INFO')
         reverse, r_stderr = reverse_dns(ip, dns_server, dns_tries, dns_time)
-        if str(reverse) == '':
-            reverse = 'FAILED: No reverse response'
-            r_stderr = 1
         hookenv.log("Reverse result for unit_id: {}, hostname: {},"
                     " exitcode: {}".format(unit_id,  str(reverse),
                                            str(r_stderr)))
@@ -144,9 +141,6 @@ def check_dns(nodes):
                         'INFO')
             forward, f_stderr = forward_dns(reverse, dns_server,
                                             dns_tries, dns_time)
-            if forward == '':
-                forward = 'FAILED: No forward response'
-                f_stderr = 1
             hookenv.log("Forward result for unit_id: {}, ip: {},"
                         " exitcode: {}".format(unit_id,  forward,
                                                str(f_stderr)))
@@ -193,6 +187,9 @@ def reverse_dns(input, dns_server, tries, timeout):
     except subprocess.CalledProcessError as exc:
         result = "Reverse DNS lookup error: " + str(exc.returncode)
         stderr = exc.returncode
+    if result == '':
+        result = 'No reverse response'
+        stderr = 1
     return result, stderr
 
 
@@ -209,4 +206,7 @@ def forward_dns(input, dns_server, tries, timeout):
     except subprocess.CalledProcessError as exc:
         result = "Forward DNS lookup error: " + str(exc.returncode)
         stderr = exc.returncode
+    if result == '':
+        result = 'No forward response'
+        stderr = 1
     return result, stderr
