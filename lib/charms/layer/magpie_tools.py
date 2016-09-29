@@ -32,20 +32,20 @@ def check_nodes(nodes):
         no_ping = 'icmp: failed: ' + str(no_ping)
 
     if no_dns == ([], [], []):
-        dns_status = 'dns: ok'
+        dns_status = ', dns: ok'
     else:
         no_rev = no_dns[0]
         no_fwd = no_dns[1]
         no_match = no_dns[2]
         if no_match != []:
-            dns_status = 'dns match: failed: ' + str(no_match)
+            dns_status = ', dns match failed: ' + str(no_match)
         else:
             if not no_rev:
-                no_rev = ', rev dns: ok'
+                no_rev = ', rev dns ok'
             else:
-                no_rev = ', rev dns: failed: ' + str(no_rev)
+                no_rev = ', rev dns failed: ' + str(no_rev)
                 if no_fwd != []:
-                    no_fwd = ', fwd dns: failed: ' + str(no_fwd)
+                    no_fwd = ', fwd dns failed: ' + str(no_fwd)
                 elif no_fwd == []:
                     no_fwd = ''
         if no_rev == []:
