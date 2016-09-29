@@ -125,6 +125,7 @@ def check_dns(nodes):
         reverse, r_stderr = reverse_dns(ip, dns_server, dns_tries, dns_time)
         if str(reverse) == '':
             reverse = 'FAILED: No reverse response'
+            r_stderr = 1
         hookenv.log("Reverse result for unit_id: {}, hostname: {},"
                     " exitcode: {}".format(unit_id,  str(reverse),
                                            str(r_stderr)))
@@ -143,6 +144,9 @@ def check_dns(nodes):
                         'INFO')
             forward, f_stderr = forward_dns(reverse, dns_server,
                                             dns_tries, dns_time)
+            if forward == '':
+                forward = 'FAILED: No forward response'
+                f_stderr = 1
             hookenv.log("Forward result for unit_id: {}, ip: {},"
                         " exitcode: {}".format(unit_id,  forward,
                                                str(f_stderr)))
