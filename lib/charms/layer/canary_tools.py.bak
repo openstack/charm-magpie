@@ -1,0 +1,120 @@
+import os
+import subprocess
+from charmhelpers.core import hookenv
+
+
+def ping(input):
+    #hookenv.log("unit is: " + input[0], 'INFO')
+    #hookenv.log("ip is: " + input[1], 'INFO')
+    response = os.system("ping -c 1 " + input + " > /dev/null 2>&1")
+    if response == 0:
+        return 0
+    else:
+        return 1
+
+
+def check_nodes(nodes):
+    no_ping = check_ping(nodes)
+    no_dns = check_dns(nodes)
+
+    if not no_ping:
+        no_ping = 'ICMP OK'
+    else:
+        no_ping = 'ICMP DOWN: ' + no_ping
+
+    if not no_dns:
+        dns_status = 'ALL DNS OK'
+    else:
+        no_rev = no_dns[0]
+        no_fwd = no_dns[1]
+        no_match = no_dns[2]
+        if not no_match:
+            dns_status = 'DNS REV/FWD DO NOT MATCH'
+        else:
+            if not no_rev:
+                no_rev = 'REV DNS OK'
+            else:
+                no_rev = 'NO REV: ' + no_fwd
+            dns_status = no_rev, dns_status
+            if not no_fwd:
+                no_fwd = 'FWD DNS OK'
+            else:
+                no_fwd = 'NO FWD: ' + no_fwd
+            dns_status = no_fwd, dns_status
+
+        no_dns = dns_status
+    #if not no_rev_dns:
+    #    no_rev_dns = 'OK'
+
+    check_status = no_ping + ', ' + dns_status  # , no_fwd_dns , no_rev_dns
+    hookenv.status_set('active', check_status)
+
+
+def check_ping(nodes):
+    try:
+        unreachable
+    except NameError:
+        unreachable = []
+    for node in nodes:
+        if ping(node[1]) == 1:
+            if node[0] not in unreachable:
+                unreachable.append(node[0])
+        else:
+            if node[0] in unreachable:
+                unreachable.remove(node[0])
+
+    return unreachable
+
+
+def check_dns(nodes):
+    try:
+        norev
+    except NameError:
+        norev = []
+    try:
+        nofwd
+    except NameError:
+        nofwd = []
+    try:
+        nomatch
+    except NameError:
+        nomatch = []
+    for node in nodes:
+        ip = node[1]
+        reverse, r_stderr = dns(ip, reverse=True)
+        if r_stderr:
+            if ip not in norev:
+                norev.append(ip)
+        else:
+            if ip in norev:
+                norev.remove(ip)
+        forward, f_stderr = dns(reverse, reverse=False)
+        if f_stderr:
+            if reverse not in nofwd:
+                nofwd.append(ip)
+        else:
+            if reverse in nofwd:
+                nofwd.remove(reverse)
+        if ip != forward:
+            if ip not in nomatch:
+                nomatch.append([ip, forward])
+        return norev, nofwd, nomatch
+
+
+def dns(input, reverse=None):
+    if reverse:
+        cmd = 'dig -x ' + input + '+short'
+        try:
+            result = subprocess.check_output(cmd)
+            stderr = 0
+        except subprocess.CalledProcessError as stderr:
+            result = "REV ERR" + stderr
+        return result, stderr
+    else:
+        cmd = 'dig' + input + '+short'
+        try:
+            result = subprocess.check_output(cmd)
+            stderr = 0
+        except subprocess.CalledProcessError as stderr:
+            result = "FWD ERR" + stderr
+        return result, stderr

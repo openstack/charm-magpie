@@ -1,21 +1,9 @@
-name: hadoop-client
-summary: Client charm for Apache Hadoop platform
-maintainer: Big Data Team <bigdata@lists.ubuntu.com>
+name: canary-layer
+summary: Canary
+maintainer: canary
 description: |
-  Hadoop is a software platform that lets one easily write and
-  run applications that process vast amounts of data.
-
-  This charm manages a dedicated client node as a place to
-  run mapreduce jobs.  However, its main purpose is to serve as
-  a base layer for other client charms, such as Gobblin' or Spark.
+        Canary layer - pings all peer units to validate network connectivity
 tags: ["bigdata", "hadoop"]
-provides:
-  hadoop:
-    interface: hadoop-plugin
-    scope: container
-  mahout:
-    interface: mahout
-    scope: container
-  java:
-    interface: java
-    scope: container
+peers:
+  canary:
+    interface: canary
