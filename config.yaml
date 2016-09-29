@@ -18,3 +18,4 @@ options:
   ping_tries:
     default: 1
     description: Number of ICMP packets per ping
+    type: int

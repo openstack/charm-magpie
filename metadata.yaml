@@ -1,9 +1,11 @@
-name: canary-layer
-summary: Canary
-maintainer: canary
+name: magpie
+summary: Magpie layer to test networking - ICMP and DNS
+maintainer: Andrew McLeod <andrew.mcleod@canonical.com>
 description: |
-        Canary layer - pings all peer units to validate network connectivity
-tags: ["bigdata", "hadoop"]
+        Magpie will check ICMP and DNS between itself and any
+        peer units deployed - deploy more than one magpie unit
+        for meaningful results.
+tags: ["testing", "CI"]
 peers:
-  canary:
-    interface: canary
+  magpie:
+    interface: magpie

@@ -3,12 +3,13 @@
 import os
 import subprocess
 import re
-from charmhelpers.core import hookenv, config
+from charmhelpers.core import hookenv
 
 
 def ping(input, ping_time, ping_tries):
     ping_string = "ping -c {} -w {} {} > /dev/null 2>&1"\
         .format(ping_tries, ping_time, input)
+    hookenv.log('Ping command: {}'.format(ping_string), 'DEBUG')
     response = os.system(ping_string)
     if response == 0:
         return 0
@@ -58,7 +59,7 @@ def check_nodes(nodes):
 
 
 def check_ping(nodes):
-    cfg = config()
+    cfg = hookenv.config()
     ping_time = cfg.get('ping_time')
     ping_tries = cfg.get('ping_tries')
     try:
@@ -69,7 +70,7 @@ def check_ping(nodes):
         unit_id = node[0].split('/')[1]
         hookenv.log('Pinging unit_id: ' + str(unit_id), 'INFO')
         if ping(node[1], ping_time, ping_tries) == 1:
-            hookenv.log('Ping FAILED for unit_id: ' + str(unit_id), 'INFO')
+            hookenv.log('Ping FAILED for unit_id: ' + str(unit_id), 'ERROR')
             if unit_id not in unreachable:
                 unreachable.append(unit_id)
         else:
@@ -81,7 +82,7 @@ def check_ping(nodes):
 
 
 def check_dns(nodes):
-    cfg = config()
+    cfg = hookenv.config()
     dns_server = cfg.get('dns_server')
     dns_tries = cfg.get('dns_tries')
     dns_time = cfg.get('dns_time')
@@ -102,20 +103,20 @@ def check_dns(nodes):
         ip = node[1]
         if not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", ip):
             hookenv.log("private-address appears to be a hostname: {},"
-                        "attempting forward lookup...", 'WARN')
+                        " attempting forward lookup...", 'WARN')
             ip = forward_dns(ip, dns_server, dns_tries, dns_time)[0]
         else:
             hookenv.log('private-address appears to be an IP', 'INFO')
         unit_id = node[0].split('/')[1]
         hookenv.log("Reverse lookup for ip: {}, node: {},"
-                    "unit_id: {}".format(ip, node[0], unit_id), 'INFO')
+                    " unit_id: {}".format(ip, node[0], unit_id), 'INFO')
         reverse, r_stderr = reverse_dns(ip, dns_server, dns_tries, dns_time)
         hookenv.log("Reverse result for unit_id: {}, hostname: {},"
-                    "exitcode: {}".format(unit_id,  str(reverse),
-                                          str(r_stderr)))
+                    " exitcode: {}".format(unit_id,  str(reverse),
+                                           str(r_stderr)))
         if r_stderr:
             hookenv.log("Reverse FAILED for"
-                        "unit_id: {}".format(unit_id), 'ERROR')
+                        " unit_id: {}".format(unit_id), 'ERROR')
             if unit_id not in norev:
                 norev.append(unit_id)
             continue
@@ -124,34 +125,33 @@ def check_dns(nodes):
             if unit_id in norev:
                 norev.remove(unit_id)
             hookenv.log("Forward lookup for hostname: {}, node: {},"
-                        "unit_id: {}".format(str(reverse), node[0], unit_id),
+                        " unit_id: {}".format(str(reverse), node[0], unit_id),
                         'INFO')
             forward, f_stderr = forward_dns(reverse, dns_server,
                                             dns_tries, dns_time)
             hookenv.log("Forward result for unit_id: {}, ip: {},"
-                        "exitcode: {}".format(unit_id,  forward,
-                                              str(f_stderr)))
+                        " exitcode: {}".format(unit_id,  forward,
+                                               str(f_stderr)))
             if f_stderr:
                 hookenv.log("Forward FAILED for"
-                            "unit_id: {}".format(unit_id), 'ERROR')
+                            " unit_id: {}".format(unit_id), 'ERROR')
                 if unit_id not in nofwd:
                     nofwd.append(unit_id)
             else:
                 hookenv.log("Forward OK for"
-                            "unit_id: {}".format(unit_id), 'INFO')
+                            " unit_id: {}".format(unit_id), 'INFO')
                 if unit_id in nofwd:
                     nofwd.remove(unit_id)
                 if ip != forward:
-                    hookenv.log("Reverse and Forward MATCH FAILED for"
-                                "unit_id: {}, Reverse: {}, Forward: {}".format(
-                                    unit_id, str(reverse), forward), 'ERROR')
-
+                    hookenv.log("Original IP and Forward MATCH FAILED for"
+                                " unit_id: {}, Original: {}, Forward: {}"
+                                .format(unit_id, ip, forward), 'ERROR')
                     if unit_id not in nomatch:
                         nomatch.append(unit_id)
                 else:
-                    hookenv.log("Reverse and Forward MATCH OK for unit_id: {},"
-                                "Reverse: {}, Forward: {}"
-                                .format(unit_id, str(reverse), forward),
+                    hookenv.log("Original IP and Forward MATCH OK for unit_id:"
+                                " {}, Original: {}, Forward: {}"
+                                .format(unit_id, ip, forward),
                                 'INFO')
                     if unit_id in nomatch:
                         nomatch.remove(unit_id)
@@ -164,7 +164,7 @@ def reverse_dns(input, dns_server, tries, timeout):
         .format(tries, timeout)
     if dns_server:
         cmd = '{} @{}'.format(cmd, dns_server)
-    hookenv.log(cmd, 'DEBUG')
+    hookenv.log('DNS Reverse command: {}'.format(cmd), 'DEBUG')
     try:
         result = subprocess.check_output(cmd, shell=True)\
             .decode('utf-8').rstrip()
@@ -180,7 +180,7 @@ def forward_dns(input, dns_server, tries, timeout):
         .format(tries, timeout)
     if dns_server:
         cmd = '{} @{}'.format(cmd, dns_server)
-    hookenv.log(cmd, 'DEBUG')
+    hookenv.log('DNS Forward command: {}'.format(cmd), 'DEBUG')
     try:
         result = subprocess.check_output(cmd, shell=True)\
             .decode('utf-8').rstrip()

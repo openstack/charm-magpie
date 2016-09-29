@@ -1,2 +1,2 @@
-repo: git@github.com:andrewdmcleod/canary-layer.git
-includes: ['layer:basic', 'interface:canary']
+repo: git@github.com:andrewdmcleod/magpie-layer.git
+includes: ['layer:basic', 'interface:magpie']
