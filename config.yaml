@@ -1,0 +1,21 @@
+options:
+  dns_server:
+    default: ''
+    description: Use unit default DNS server 
+    type: string
+  dns_tries:
+    default: 1
+    description: Number of DNS resolution attempts per query
+    type: int
+  dns_time:
+    default: 3
+    description: Timeout in seconds per DNS query try
+    type: int
+  ping_timeout:
+    default: 2
+    description: Timeout in seconds per ICMP request
+    type: int
+  ping_tries:
+    default: 1
+    description: Number of ICMP packets per ping
+    type: int
