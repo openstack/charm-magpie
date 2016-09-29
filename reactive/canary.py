@@ -1,7 +1,6 @@
 # pylint: disable=unused-argument
-from charms.reactive import when, when_not, when_not_all, is_state
+from charms.reactive import when, when_not
 from charmhelpers.core import hookenv
-from charms import layer
 from charms.layer.canary_tools import check_nodes
 
 @when_not('canary.joined')
@@ -9,11 +8,21 @@ def no_peers():
     hookenv.status_set('active', 'Waiting for peers to join...')
     
 @when('canary.joined')
-def check_peers(canary):
+def check_peers_joined(canary):
     '''
-    Need to decide if active is ok for status
-    and what to do if a unit is unreachable
+    We do not dismiss joined here so that this check reruns
+    every time we do an update-status
     '''
 
     nodes = canary.get_nodes()
     check_nodes(nodes)
+
+@when('canary.departed')
+def check_peers_again(canary):
+    '''
+    We dismiss departed here so that we don't duplicate checks
+    when update-status runs check_peers_joined
+    '''
+    nodes = canary.get_nodes()
+    check_nodes(nodes)
+    canary.dismiss_departed()
