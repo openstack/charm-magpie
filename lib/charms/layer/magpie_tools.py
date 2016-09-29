@@ -123,6 +123,8 @@ def check_dns(nodes):
         hookenv.log("Reverse lookup for ip: {}, node: {},"
                     " unit_id: {}".format(ip, node[0], unit_id), 'INFO')
         reverse, r_stderr = reverse_dns(ip, dns_server, dns_tries, dns_time)
+        if str(reverse) == '':
+            reverse = 'FAILED: No reverse response'
         hookenv.log("Reverse result for unit_id: {}, hostname: {},"
                     " exitcode: {}".format(unit_id,  str(reverse),
                                            str(r_stderr)))
@@ -155,7 +157,8 @@ def check_dns(nodes):
                 if unit_id in nofwd:
                     nofwd.remove(unit_id)
                 if ip != forward:
-                    if not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", forward):
+                    if not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$",
+                                    forward):
                         forward = "Can not resolve hostname to IP"
                     hookenv.log("Original IP and Forward MATCH FAILED for"
                                 " unit_id: {}, Original: {}, Forward: {}"
