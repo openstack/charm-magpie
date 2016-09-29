@@ -52,10 +52,10 @@ def check_nodes(nodes):
             no_rev = ''
         if no_fwd == []:
             no_fwd = ''
-        dns_status = '{} {} {}'\
+        dns_status = '{}{}{}'\
             .format(dns_status, str(no_rev), str(no_fwd))
 
-    check_status = '{}, {}'.format(no_ping, str(dns_status))
+    check_status = '{}{}'.format(no_ping, str(dns_status))
     if 'failed' in check_status:
         workload = 'blocked'
     else:
