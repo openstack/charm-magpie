@@ -29,14 +29,3 @@ def check_peers_joined(magpie):
 
     nodes = magpie.get_nodes()
     _set_states(check_nodes(nodes))
-
-
-@when('magpie.departed')
-def check_peers_again(magpie):
-    '''
-    We dismiss departed here so that we don't duplicate checks
-    when update-status runs check_peers_joined
-    '''
-    nodes = magpie.get_nodes()
-    _set_states(check_nodes(nodes))
-    magpie.dismiss_departed()
