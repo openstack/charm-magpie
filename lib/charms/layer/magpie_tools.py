@@ -56,11 +56,14 @@ def check_nodes(nodes):
             .format(dns_status, str(no_rev), str(no_fwd))
 
     check_status = '{}{}'.format(no_ping, str(dns_status))
+
     if 'failed' in check_status:
         workload = 'blocked'
     else:
         workload = 'active'
     hookenv.status_set(workload, check_status)
+    reactive_state = {'icmp': no_ping, 'dns': dns_status}
+    return reactive_state
 
 
 def check_ping(nodes):

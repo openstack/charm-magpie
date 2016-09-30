@@ -1,13 +1,31 @@
 # Overview
 
-Magpie is a charm used for testing networking (ICMP and DNS specifically)
-on a provider/substrate. Simply deploy more than one Magpie charm and 
-watch the status messages. 
+Magpie is a charm used for testing the networking (ICMP and DNS specifically)
+of a juju provider/substrate. Simply deploy more than one Magpie charm and 
+watch the status messages and debug logs. 
 
 Status messages will show the unit numbers that have issues - if there are 
 no problems, there will not be a verbose status message.
 
 All actions, strings, queries and actions are logged in the juju logs.
+
+
+# Workload Status
+
+In addition to ICMP and DNS status messages, if a networking problem is
+detected, the workload status of the agent which has found the issues
+will be set to blocked. 
+
+
+# Reactive States
+
+This layer will set the following states:
+
+* **`magpie-icmp.failed`** ICMP has failed to one or more units in the peer
+relation.
+* **`magpie-dns.failed`** DNS has failed to one or more units in the peer 
+relation.
+
 
 # Usage
 
@@ -21,7 +39,7 @@ This charm also supports the following config values:
 ```yaml
   dns_server:
     default: ''
-    description: Use unit default DNS server 
+    description: DNS Server to use (default: system default)
     type: string
   dns_tries:
     default: 1
