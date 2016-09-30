@@ -18,27 +18,30 @@ def ping(input, ping_time, ping_tries):
 
 
 def check_local_hostname():
-    local_hostname = subprocess.check_output('hostname', shell=True)
-    lookup_cmd = "getent hosts {}".format(local_hostname)
-    hookenv.log('Looking up Hostname: {}'.format(local_hostname))
-    try:    
+    local_hostname = subprocess.check_output('hostname', shell=True)\
+        .decode('utf-8').rstrip()
+    lookup_cmd = "getent hosts {}'".format(local_hostname)
+    hookenv.log('Looking up local hostname: {}'.format(local_hostname))
+    try:
         result = subprocess.check_output(lookup_cmd, shell=True)\
             .decode('utf-8').rstrip()
+        result = ''
+        stderr = 0
     except subprocess.CalledProcessError as exc:
-        result = "Local hostname lookup failed: {}".format(str(exc.output))
+        result = local_hostname
         stderr = exc.returncode
     return result, stderr
 
 
 def check_nodes(nodes):
     cfg = hookenv.config()
-    check_hostname = cfg.get('check_hostname')
-    if check_hostname:
+    check_local_hostname = cfg.get('check_local_hostname')
+    if check_local_hostname:
         no_hostname = check_local_hostname()
-        if not no_hostname:
-            no_hostname = ', hostname ok'
+        if no_hostname == '':
+            no_hostname = ', local hostname ok'
         else:
-            no_hostname = ', hostname failed: ' + str(no_hostname)
+            no_hostname = ', local hostname failed: ' + str(no_hostname)
 
     no_ping = check_ping(nodes)
     no_dns = check_dns(nodes)
@@ -75,7 +78,7 @@ def check_nodes(nodes):
         dns_status = '{}{}{}'\
             .format(dns_status, str(no_rev), str(no_fwd))
 
-    if check_hostname:
+    if check_local_hostname:
         check_status = '{}{}{}'.format(no_ping, str(no_hostname), str(dns_status))
     else:
         check_status = '{}{}'.format(no_ping, str(dns_status))
