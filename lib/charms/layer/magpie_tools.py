@@ -68,7 +68,7 @@ def check_nodes(nodes):
 
 def check_ping(nodes):
     cfg = hookenv.config()
-    ping_time = cfg.get('ping_time')
+    ping_time = cfg.get('ping_timeout')
     ping_tries = cfg.get('ping_tries')
     try:
         unreachable
