@@ -35,8 +35,8 @@ def check_local_hostname():
 
 def check_nodes(nodes):
     cfg = hookenv.config()
-    check_local_hostname = cfg.get('check_local_hostname')
-    if check_local_hostname:
+    cfg_check_local_hostname = cfg.get('check_local_hostname')
+    if cfg_check_local_hostname:
         no_hostname = check_local_hostname()
         if no_hostname == '':
             no_hostname = ', local hostname ok'
