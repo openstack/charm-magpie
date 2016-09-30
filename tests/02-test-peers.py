@@ -23,7 +23,11 @@ class TestDeploy(unittest.TestCase):
     def test_deploy(self):
         self.d.sentry.wait_for_messages({'magpie': re.compile('ok|failed')}, timeout=60)
 
-
+    # following test is commented out until this bug is resolved;
+    # https://bugs.launchpad.net/juju/+bug/1623480
+    #def test_check_local_hostname(self):
+    #   self.d.sentry.wait_for_messages({'magpie': {re.compile('.*hostname ok.*'}}, timeout=60)
+        
     def test_break_dns_single(self):
         print ('Test break dns single...')
         """Break DNS on one unit, make sure DNS check fails, fix DNS, toggle back"""
@@ -50,13 +54,11 @@ class TestDeploy(unittest.TestCase):
     def test_break_ping_single(self):
         print ('Test break ping single')
         """Take primary interface down and make sure ICMP fails."""
-        #interface, retcode = self.magpie_1.run("ip route get 255.255.255.255")
-        #interface = interface.split(" ")[3]
         self.magpie_1.run("(sudo service networking stop; sleep 60 ; sudo service networking start)&")
         self.magpie_1.run("hooks/update-status")
-        self.d.sentry.wait_for_messages({'magpie': {re.compile('icmp failed.*')}}, timeout=60)
+        self.d.sentry.wait_for_messages({'magpie': {re.compile('icmp failed.*')}}, timeout=120)
         self.magpie_1.run("hooks/update-status")
-        self.d.sentry.wait_for_messages({'magpie': {re.compile('icmp ok.*')}}, timeout=60)
+        self.d.sentry.wait_for_messages({'magpie': {re.compile('icmp ok.*')}}, timeout=120)
 
 if __name__ == '__main__':
     unittest.main()
