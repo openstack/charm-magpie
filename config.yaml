@@ -1,5 +1,5 @@
 options:
-  check_hostname:
+  check_local_hostname:
     default: true
     description: Check if local hostname is resolvable
     type: boolean
