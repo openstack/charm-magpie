@@ -14,7 +14,7 @@ class TestDeploy(unittest.TestCase):
         self.d = amulet.Deployment(series='xenial')
         self.d.add('magpie', 'magpie', units=2)
         self.d.setup(timeout=900)
-        self.d.sentry.wait_for_messages({'magpie': re.compile('ok|failed'}, timeout=3600)
+        self.d.sentry.wait_for_messages({'magpie': re.compile('ok|failed'), timeout=3600)
         #self.magpie_1 = self.d.sentry['magpie'][0]
         #self.magpie_2 = self.d.sentry['magpie'][1]
 
