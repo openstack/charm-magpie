@@ -27,12 +27,12 @@ def check_nodes(nodes):
         dns_status = ''
 
     if not no_ping:
-        no_ping = 'icmp: ok'
+        no_ping = 'icmp ok'
     else:
-        no_ping = 'icmp: failed: ' + str(no_ping)
+        no_ping = 'icmp failed: ' + str(no_ping)
 
     if no_dns == ([], [], []):
-        dns_status = ', dns: ok'
+        dns_status = ', dns ok'
     else:
         no_rev = no_dns[0]
         no_fwd = no_dns[1]
