@@ -1,4 +1,8 @@
 options:
+  check_hostname:
+    default: true
+    description: Check if local hostname is resolvable
+    type: boolean
   dns_server:
     default: ''
     description: Use unit default DNS server 
