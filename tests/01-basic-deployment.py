@@ -6,16 +6,14 @@ import amulet
 
 class TestDeploy(unittest.TestCase):
     """
-    Trivial deployment test for Magpie to test ICMP and DNS
+    Trivial deployment test for Magpie
     """
 
     def test_deploy(self):
-        self.d = amulet.Deployment(series='trusty')
-        self.d.add('magpie', 'magpie', units=2)
+        self.d = amulet.Deployment(series='xenial')
+        self.d.add('magpie', 'magpie')
         self.d.setup(timeout=900)
-        self.d.sentry.wait(timeout=1800)
-        self.unit = self.d.sentry['magpie'][0]
-
+        self.d.sentry.wait_for_messages({'magpie': 'Waiting for peers...'}, timeout=3600)
 
 if __name__ == '__main__':
     unittest.main()

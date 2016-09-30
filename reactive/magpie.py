@@ -18,7 +18,8 @@ def _set_states(check_result):
 @when_not('magpie.joined')
 def no_peers():
     hookenv.status_set('waiting', 'Waiting for peers...')
-    
+
+
 @when('magpie.joined')
 def check_peers_joined(magpie):
     '''
@@ -29,6 +30,7 @@ def check_peers_joined(magpie):
     nodes = magpie.get_nodes()
     _set_states(check_nodes(nodes))
 
+
 @when('magpie.departed')
 def check_peers_again(magpie):
     '''
@@ -36,5 +38,5 @@ def check_peers_again(magpie):
     when update-status runs check_peers_joined
     '''
     nodes = magpie.get_nodes()
-    _set_state(check_nodes(nodes))
+    _set_states(check_nodes(nodes))
     magpie.dismiss_departed()
