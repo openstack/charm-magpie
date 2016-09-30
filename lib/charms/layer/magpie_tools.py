@@ -38,7 +38,7 @@ def check_nodes(nodes):
         no_fwd = no_dns[1]
         no_match = no_dns[2]
         if no_match != []:
-            dns_status = ', dns match failed: ' + str(no_match)
+            dns_status = ', match dns failed: ' + str(no_match)
         else:
             if not no_rev:
                 no_rev = ', rev dns ok'
