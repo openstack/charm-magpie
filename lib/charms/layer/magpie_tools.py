@@ -37,13 +37,13 @@ def check_nodes(nodes):
     cfg = hookenv.config()
     cfg_check_local_hostname = cfg.get('check_local_hostname')
     if cfg_check_local_hostname:
-        no_hostname, no_hostname_stderr = check_local_hostname()
-        if no_hostname == '':
+        no_hostname = check_local_hostname()
+        if no_hostname[0] == '':
             no_hostname = ', local hostname ok'
-            hookenv.log('Local hostname lookup OK, got this: {}' + str(no_hostname), 'INFO')
+            hookenv.log('Local hostname lookup OK: {}'.format(str(no_hostname)), 'INFO')
         else:
             no_hostname = ', local hostname failed: '
-            hookenv.log('Local hostname lookup Failed, got this: {}' + str(no_hostname), 'ERROR')
+            hookenv.log('Local hostname lookup FAILED: {}'format(str(no_hostname)), 'ERROR')
 
     no_ping = check_ping(nodes)
     no_dns = check_dns(nodes)
