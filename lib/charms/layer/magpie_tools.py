@@ -80,7 +80,7 @@ def check_nodes(nodes):
         dns_status = '{}{}{}'\
             .format(dns_status, str(no_rev), str(no_fwd))
 
-    if check_local_hostname:
+    if cfg_check_local_hostname:
         check_status = '{}{}{}'.format(no_ping, str(no_hostname), str(dns_status))
     else:
         check_status = '{}{}'.format(no_ping, str(dns_status))
