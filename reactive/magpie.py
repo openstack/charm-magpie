@@ -1,7 +1,7 @@
 # pylint: disable=unused-argument
 from charms.reactive import when, when_not, set_state, remove_state
 from charmhelpers.core import hookenv
-from charms.layer.magpie_tools import check_nodes
+from charms.layer.magpie_tools import check_nodes, safe_status
 
 
 def _set_states(check_result):
@@ -17,7 +17,7 @@ def _set_states(check_result):
 
 @when_not('magpie.joined')
 def no_peers():
-    hookenv.status_set('waiting', 'Waiting for peers...')
+    safe_status('waiting', 'Waiting for peers...')
 
 
 @when('magpie.joined')

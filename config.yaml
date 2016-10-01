@@ -23,3 +23,7 @@ options:
     default: 1
     description: Number of ICMP packets per ping
     type: int
+  supress_status:
+    default: false
+    description: Enable this if you intend to consume this layer - supresses status messages
+    type: string

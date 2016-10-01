@@ -6,6 +6,11 @@ import re
 from charmhelpers.core import hookenv
 
 
+def safe_status(workload, status):
+    cfg = hookenv.config()
+    if not cfg.get('supress_status'):
+        hookenv.status_set(workload, status)
+
 def ping(input, ping_time, ping_tries):
     ping_string = "ping -c {} -w {} {} > /dev/null 2>&1"\
         .format(ping_tries, ping_time, input)
@@ -89,7 +94,7 @@ def check_nodes(nodes):
         workload = 'blocked'
     else:
         workload = 'active'
-    hookenv.status_set(workload, check_status)
+    safe_status(workload, check_status)
     reactive_state = {'icmp': no_ping, 'dns': dns_status}
     return reactive_state
 
