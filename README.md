@@ -37,6 +37,10 @@ juju deploy magpie -n 1 --to lxc:1
 This charm also supports the following config values:
 
 ```yaml
+  check_local_hostname:
+    default: true
+    description: Check if local hostname is resolvable
+    type: boolean
   dns_server:
     default: ''
     description: DNS Server to use (default: system default)
