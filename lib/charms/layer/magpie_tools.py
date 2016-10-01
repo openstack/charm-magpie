@@ -43,7 +43,7 @@ def check_nodes(nodes):
             hookenv.log('Local hostname lookup OK: {}'.format(str(no_hostname)), 'INFO')
         else:
             no_hostname = ', local hostname failed: '
-            hookenv.log('Local hostname lookup FAILED: {}'format(str(no_hostname)), 'ERROR')
+            hookenv.log('Local hostname lookup FAILED: {}'.format(str(no_hostname)), 'ERROR')
 
     no_ping = check_ping(nodes)
     no_dns = check_dns(nodes)
