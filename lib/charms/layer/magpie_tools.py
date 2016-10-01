@@ -20,7 +20,7 @@ def ping(input, ping_time, ping_tries):
 def check_local_hostname():
     local_hostname = subprocess.check_output('hostname', shell=True)\
         .decode('utf-8').rstrip()
-    lookup_cmd = "getent hosts {}'".format(local_hostname)
+    lookup_cmd = "getent hosts {}".format(local_hostname)
     hookenv.log('Looking up local hostname: {}'.format(local_hostname))
     try:
         result = subprocess.check_output(lookup_cmd, shell=True)\
