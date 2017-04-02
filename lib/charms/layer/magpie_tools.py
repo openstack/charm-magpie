@@ -1,10 +1,103 @@
 #!/usr/bin/env python
 
 import os
+import sys
+import signal
 import subprocess
 import re
 from charmhelpers.core import hookenv
+from charmhelpers.fetch import apt_install
+from charms.reactive import set_state, remove_state
+from charms.reactive.bus import get_state
+import threading
+import time
 
+# is there a better way to get these packages into the unit?
+def install_iperf():
+    apt_install("iperf")
+
+class Iperf():
+    """
+    Install and start a server automatically
+    """
+    try:
+        if not mtu:
+            mtu = ''
+    except:
+        mtu = ''
+    try:
+        if not speed:
+            speed = ''
+    except:
+        speed = ''
+    def __init__(self):
+        hookenv.log('1init', 'INFO')
+        try:
+            subprocess.check_call(['pgrep', 'iperf'])
+            # we only need to run this check once.
+            #subprocess.check_call(['pkill', '-f', 'iperf'])
+            #thread = threading.Thread(target=self.monitor, args=())
+            #thread.start()
+            #hookenv.log('iperf server running')
+        except: 
+            hookenv.log('2init', 'INFO')
+            #thread = threading.Thread(target=self.monitor, args=())
+            #thread.start()
+            self.monitor()
+            hookenv.log('3init', 'INFO')
+            
+    def monitor(self):
+        hookenv.log('4init', 'INFO')
+        process = subprocess.Popen(['iperf', '-s', '-m'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        killproc = "pkill -f iperf"
+        hookenv.log('5init', 'INFO')
+        while True:
+            nextline = process.stdout.readline()
+            nextline = nextline.decode("utf-8")
+            if nextline == '' and process.poll() is not None:
+                os.system(killproc)
+                return 
+            if "bits" in nextline:
+                self.speed = nextline.rsplit(' ', 2)[1] 
+                hookenv.log(self.speed)
+                #sys.stdout.write(self.speed)
+                #sys.stdout.write("\n")
+            if "MTU" in nextline:
+                self.mtu = nextline.split('MTU', 4)[1].split(' ')[1]
+                hookenv.log(self.mtu)
+                #sys.stdout.write(self.mtu)
+                os.system(killproc)
+                return 
+            #sys.stdout.flush()
+
+        #    subprocess.check_output 
+        #msg = e.value
+        #hookenv.log('Starting iperf3 server', 'INFO')
+        #self.result = self.server.run()
+        #hookenv.log('Started iperf3 server', 'INFO')
+        #msg = self.result.remote_host, self.result.tcp_mss_default, self.result.received_Mbps
+        #hookenv.log(msg, 'INFO')
+
+    def stop_server(self):
+        return
+
+    def check_hosts(self):
+        return
+
+
+def iperf_selfcheck():
+    hookenv.log('starting self test', 'INFO')
+    subprocess.check_output(["iperf", "-c", "localhost", "-t", "1"])
+    hookenv.log('finished self test', 'INFO')
+
+def iperf_hostcheck(nodes):
+    #safe_status('active', 'Leader is checking all other hosts...')  
+    # Wait for other nodes to start their servers...
+    for node in nodes:
+        msg = "checking {}".format(node[1])
+        hookenv.log(msg, 'INFO')
+        cmd = "iperf -t1 -c {}".format(node[1])
+        os.system(cmd)
 
 def safe_status(workload, status):
     cfg = hookenv.config()
@@ -38,7 +131,33 @@ def check_local_hostname():
     return result, stderr
 
 
-def check_nodes(nodes):
+def check_nodes(nodes, iperf_listen=False, iperf_client=False):
+    hookenv.log('Starting iperf', 'INFO')
+    msg = "iperf_client is: {}, iperf check is: {}".format(str(iperf_client), str(iperf_listen))
+    hookenv.log(msg, 'INFO')
+    if not iperf_client and iperf_listen:
+        perf = Iperf()
+    #iperf_selfcheck()
+        msg = "BLOOP BLOOMP!", perf.mtu, perf.speed
+        hookenv.log(msg, 'INFO')
+        try:
+            if perf.mtu == '' and "mtu" not in hookenv.status_get():
+                perf_status = ", waiting for perf test..."
+            else:
+                perf_status = ", mtu: {}, {} mbit/s".format(perf.mtu, perf.speed)
+        except:
+            perf_status = ", waiting for perf test..."
+            print ("EXCEPTION")
+    elif iperf_client:
+        perf_status = ", iperf client"
+        iperf_hostcheck(nodes)
+    try:
+        if perf_status:
+            pass
+    except:
+        perf_status = ", waiting for check"
+    hookenv.log(msg, 'INFO')
+    hookenv.log('doing other things after iperf', 'INFO')
     cfg = hookenv.config()
     cfg_check_local_hostname = cfg.get('check_local_hostname')
     if cfg_check_local_hostname:
@@ -86,9 +205,9 @@ def check_nodes(nodes):
             .format(dns_status, str(no_rev), str(no_fwd))
 
     if cfg_check_local_hostname:
-        check_status = '{}{}{}'.format(no_ping, str(no_hostname), str(dns_status))
+        check_status = '{}{}{}{}'.format(no_ping, str(no_hostname), str(dns_status), str(perf_status)) 
     else:
-        check_status = '{}{}'.format(no_ping, str(dns_status))
+        check_status = '{}{}{}'.format(no_ping, str(dns_status), str(perf_status))
 
     if 'failed' in check_status:
         workload = 'blocked'
