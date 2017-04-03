@@ -51,6 +51,7 @@ class Iperf():
         process = subprocess.Popen(['iperf', '-s', '-m'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         killproc = "pkill -f iperf"
         hookenv.log('5init', 'INFO')
+        safe_status('waiting', 'iperf server waiting for check')
         while True:
             nextline = process.stdout.readline()
             nextline = nextline.decode("utf-8")
