@@ -6,6 +6,7 @@ import signal
 import subprocess
 import re
 from charmhelpers.core import hookenv
+from charmhelpers.core.host import get_nic_mtu
 from charmhelpers.fetch import apt_install
 from charms.reactive import set_state, remove_state
 from charms.reactive.bus import get_state
@@ -90,14 +91,23 @@ def check_local_hostname():
 
 
 def check_nodes(nodes, iperf_client=False):
-    hookenv.log('Starting iperf', 'INFO')
+    local_ip = hookenv.unit_private_ip()
+    ip_prefix = '.'.join(local_ip.split('.')[0:3])
+    iface_line = subprocess.check_output(["ip", "route", "get", ip_prefix])
+    primary_iface = str(iface_line).split('dev')[1].split(' ')[1]
+    iface_mtu = get_nic_mtu(primary_iface)
+    msg = "MTU for iface: {} is {}".format(primary_iface, iface_mtu)
+    hookenv.log(msg, 'INFO')
     if not iperf_client:
         iperf = Iperf()
         mtu = iperf.mtu()
         speed = iperf.speed()
-        iperf_status = ", mtu: {}, {} mbit/s".format(mtu, speed)
+        if iface_mtu == mtu:
+            iperf_status = ", mtu: {}, {} mbit/s".format(mtu, speed)
+        else:
+            iperf_status = ", mtu mismatch: {} packet vs {} on iface {}, {} mbits/s".format(mtu, iface_mtu, primary_iface, speed)
     elif iperf_client:
-        iperf_status = ", iperf leader"
+        iperf_status = ", iperf leader, mtu: {}".format(iface_mtu)
         iperf_hostcheck(nodes)
     hookenv.log('doing other things after iperf', 'INFO')
     cfg = hookenv.config()
@@ -147,9 +157,9 @@ def check_nodes(nodes, iperf_client=False):
             .format(dns_status, str(no_rev), str(no_fwd))
 
     if cfg_check_local_hostname:
-        check_status = '{}{}{}{}'.format(no_ping, str(no_hostname), str(dns_status), str(perf_status)) 
+        check_status = '{}{}{}{}'.format(no_ping, str(no_hostname), str(dns_status), str(iperf_status)) 
     else:
-        check_status = '{}{}{}'.format(no_ping, str(dns_status), str(perf_status))
+        check_status = '{}{}{}'.format(no_ping, str(dns_status), str(iperf_status))
 
     if 'failed' in check_status:
         workload = 'blocked'
