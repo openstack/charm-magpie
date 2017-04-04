@@ -4,6 +4,7 @@ from charms.reactive.bus import get_state
 from charmhelpers.core import hookenv
 from charms.layer.magpie_tools import check_nodes, safe_status, Iperf, install_iperf
 from charmhelpers.core.unitdata import Storage
+import threading
 
 def _set_states(check_result):
     if 'fail' in check_result['icmp']:
@@ -15,7 +16,6 @@ def _set_states(check_result):
     else:
         remove_state('magpie-dns.failed')
 
-
 @when_not('iperf.installed')
 def install_iperf_pkg():
     install_iperf()
@@ -25,63 +25,56 @@ def install_iperf_pkg():
 def no_peers():
     safe_status('waiting', 'Waiting for peers...')
 
-#@when('leadership.is_leader', 'magpie.joined')
-#@when_not('iperf.client')
-#def select_iperf_leader(magpie):
-#    #if magpie.get_iperf_client() is None:
-#    set_state('iperf.client')
-#    msg = "Select iperf leader: {}".format(magpie.get_iperf_client())
-#    hookenv.log(msg, 'INFO')
+@when('magpie.joined')
+@when_not('leadership.is_leader', 'iperf.checked')
+def check_check_state(magpie):
+    '''
+    Servers should only update their status after iperf has checked them
+    '''
+    if (magpie.get_iperf_checked() is not None) and \
+            (hookenv.local_unit() in magpie.get_iperf_checked()):
+        set_state('iperf.checked')
 
-#@when('magpie.joined')
-#def check_peers_joined(magpie):
-#    '''
-#    We do not dismiss joined here so that this check reruns
-#    every time we do an update-status
-#    '''
-#    # Am i the client?
-#    msg = "FNARRRRGG: The client that i get from the list is: {}".format(magpie.get_iperf_client())
-#    hookenv.log(msg, 'INFO')
-#    #nodes = magpie.get_nodes()
-
-   
 @when('magpie.joined', 'leadership.is_leader')
 @when_not('iperf.servers.ready')
 def leader_wait_servers_ready(magpie):
-    nodes = magpie.get_nodes()
-    iperf_ready_nodes = magpie.check_ready_iperf_servers()
-    msg = "All nodes: {}, iperf ready nodes: {}".format(str(nodes), str(iperf_ready_nodes))
-    hookenv.log(msg, 'INFO')
-    if len(magpie.check_ready_iperf_servers()) == len(magpie.get_nodes()):
+    '''
+    Don't do any iperf checks until the servers are listening
+    '''
+    nodes = sorted(magpie.get_nodes())
+    iperf_ready_nodes = sorted(magpie.check_ready_iperf_servers())
+    if nodes == iperf_ready_nodes:
         set_state('iperf.servers.ready')
     else:
         remove_state('iperf.servers.ready')
 
+@when('magpie.joined')
+@when_not('leadership.is_leader', 'iperf.listening')
+def listen_for_checks(magpie):
+    '''
+    If im not the leader, and im not listening, then listen
+    '''
+    nodes = magpie.get_nodes()
+    iperf = Iperf()
+    iperf.listen()
+    magpie.set_iperf_server_ready()
+    set_state('iperf.listening')
+
 @when('iperf.servers.ready', 'magpie.joined', 'leadership.is_leader')
 def client_check_hosts(magpie):
+    '''
+    Once the iperf servers are listening, do the checks
+    '''
     nodes = magpie.get_nodes()
-    iperf_ready_nodes = magpie.check_ready_iperf_servers()
-    if iperf_ready_nodes == nodes:
-        hookenv.log("_set_states as iperf client")
-        _set_states(check_nodes(nodes, iperf_listen=False, iperf_client=True))
+    _set_states(check_nodes(nodes, iperf_client=True))
+    magpie.set_iperf_checked()
 
-@when('magpie.joined')
-@when_not('leadership.is_leader', 'iperf.checked')
-def listen_for_checks(magpie):
-    nodes = magpie.get_nodes()
-    hookenv.log(nodes)
-    magpie.set_iperf_server_ready()
-    store = Storage()
-    store.flush()
-    hookenv.log("_set_states as iperf server")
-    _set_states(check_nodes(nodes, iperf_listen=False))
-    set_state('iperf.checked')
-
-@when('magpie.joined', 'iperf.checked', 'iperf.servers.ready')
-def dont_listen_for_checks(magpie):
+@when('magpie.joined', 'iperf.checked')
+@when_not('leadership.is_leader')
+def check_all_node(magpie):
+    '''
+    Now that the iperf checks have been done, we can update our status
+    '''
     nodes = magpie.get_nodes()
     _set_states(check_nodes(nodes))
 
-#@when('magpie.joined', 'iperf.checked', 'leader-settings-changed')
-#def reset_checks(magpie):
-#    remove_state('iperf.checked')

@@ -20,83 +20,40 @@ class Iperf():
     """
     Install and start a server automatically
     """
-    try:
-        if not mtu:
-            mtu = ''
-    except:
-        mtu = ''
-    try:
-        if not speed:
-            speed = ''
-    except:
-        speed = ''
+    iperf_out = '/home/ubuntu/iperf_output.txt'
     def __init__(self):
-        hookenv.log('1init', 'INFO')
-        try:
-            subprocess.check_call(['pgrep', 'iperf'])
-            # we only need to run this check once.
-            #subprocess.check_call(['pkill', '-f', 'iperf'])
-            #thread = threading.Thread(target=self.monitor, args=())
-            #thread.start()
-            #hookenv.log('iperf server running')
-        except: 
-            hookenv.log('2init', 'INFO')
-            #thread = threading.Thread(target=self.monitor, args=())
-            #thread.start()
-            self.monitor()
-            hookenv.log('3init', 'INFO')
+        pass
             
-    def monitor(self):
-        hookenv.log('4init', 'INFO')
-        process = subprocess.Popen(['iperf', '-s', '-m'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        killproc = "pkill -f iperf"
-        hookenv.log('5init', 'INFO')
-        safe_status('waiting', 'iperf server waiting for check')
-        while True:
-            nextline = process.stdout.readline()
-            nextline = nextline.decode("utf-8")
-            if nextline == '' and process.poll() is not None:
-                os.system(killproc)
-                return 
-            if "bits" in nextline:
-                self.speed = nextline.rsplit(' ', 2)[1] 
-                hookenv.log(self.speed)
-                #sys.stdout.write(self.speed)
-                #sys.stdout.write("\n")
-            if "MTU" in nextline:
-                self.mtu = nextline.split('MTU', 4)[1].split(' ')[1]
-                hookenv.log(self.mtu)
-                #sys.stdout.write(self.mtu)
-                os.system(killproc)
-                return 
-            #sys.stdout.flush()
+    def listen(self):
+        cmd = "iperf -s -m | tee " + self.iperf_out + " &"
+        os.system(cmd)
 
-        #    subprocess.check_output 
-        #msg = e.value
-        #hookenv.log('Starting iperf3 server', 'INFO')
-        #self.result = self.server.run()
-        #hookenv.log('Started iperf3 server', 'INFO')
-        #msg = self.result.remote_host, self.result.tcp_mss_default, self.result.received_Mbps
-        #hookenv.log(msg, 'INFO')
+    def mtu(self):
+        with open(self.iperf_out) as f:
+            for line in f.readlines():
+                if "MTU" in line:
+                    match = line
+        return match.split('MTU', 4)[1].split(' ')[1]    
+
+    def speed(self):
+        with open(self.iperf_out) as f:
+            for line in f.readlines():
+                if "bits" in line:
+                    match = line
+        return match.rsplit(' ', 2)[1]
 
     def stop_server(self):
         return
 
-    def check_hosts(self):
-        return
-
-
 def iperf_selfcheck():
-    hookenv.log('starting self test', 'INFO')
     subprocess.check_output(["iperf", "-c", "localhost", "-t", "1"])
-    hookenv.log('finished self test', 'INFO')
 
 def iperf_hostcheck(nodes):
-    #safe_status('active', 'Leader is checking all other hosts...')  
+    # safe_status('active', 'Leader is checking all other hosts...')  
     # Wait for other nodes to start their servers...
     for node in nodes:
-        msg = "checking {}".format(node[1])
-        hookenv.log(msg, 'INFO')
+        msg = "checking iperf on {}".format(node[1])
+        hookenv.log(msg)
         cmd = "iperf -t1 -c {}".format(node[1])
         os.system(cmd)
 
@@ -132,32 +89,16 @@ def check_local_hostname():
     return result, stderr
 
 
-def check_nodes(nodes, iperf_listen=False, iperf_client=False):
+def check_nodes(nodes, iperf_client=False):
     hookenv.log('Starting iperf', 'INFO')
-    msg = "iperf_client is: {}, iperf check is: {}".format(str(iperf_client), str(iperf_listen))
-    hookenv.log(msg, 'INFO')
-    if not iperf_client and iperf_listen:
-        perf = Iperf()
-    #iperf_selfcheck()
-        msg = "BLOOP BLOOMP!", perf.mtu, perf.speed
-        hookenv.log(msg, 'INFO')
-        try:
-            if perf.mtu == '' and "mtu" not in hookenv.status_get():
-                perf_status = ", waiting for perf test..."
-            else:
-                perf_status = ", mtu: {}, {} mbit/s".format(perf.mtu, perf.speed)
-        except:
-            perf_status = ", waiting for perf test..."
-            print ("EXCEPTION")
+    if not iperf_client:
+        iperf = Iperf()
+        mtu = iperf.mtu()
+        speed = iperf.speed()
+        iperf_status = ", mtu: {}, {} mbit/s".format(mtu, speed)
     elif iperf_client:
-        perf_status = ", iperf client"
+        iperf_status = ", iperf leader"
         iperf_hostcheck(nodes)
-    try:
-        if perf_status:
-            pass
-    except:
-        perf_status = ", waiting for check"
-    hookenv.log(msg, 'INFO')
     hookenv.log('doing other things after iperf', 'INFO')
     cfg = hookenv.config()
     cfg_check_local_hostname = cfg.get('check_local_hostname')
