@@ -1,32 +1,24 @@
 #!/usr/bin/env python
 
 import os
-import sys
-import signal
 import subprocess
 import re
 from charmhelpers.core import hookenv
 from charmhelpers.core.host import get_nic_mtu
 from charmhelpers.fetch import apt_install
-from charms.reactive import set_state, remove_state
-from charms.reactive.bus import get_state
-import threading
-import time
 
-# is there a better way to get these packages into the unit?
-def install_iperf():
-    apt_install("iperf")
 
 class Iperf():
     """
     Install and start a server automatically
     """
     iperf_out = '/home/ubuntu/iperf_output.txt'
-    def __init__(self):
-        pass
-            
+
+    def install_iperf(self):
+        apt_install("iperf")
+
     def listen(self):
-        cmd = "iperf -s -m | tee " + self.iperf_out + " &"
+        cmd = "iperf -s -m -fm | tee " + self.iperf_out + " &"
         os.system(cmd)
 
     def mtu(self):
@@ -34,34 +26,38 @@ class Iperf():
             for line in f.readlines():
                 if "MTU" in line:
                     match = line
-        return match.split('MTU', 4)[1].split(' ')[1]    
+        try:
+            return match.split('MTU', 4)[1].split(' ')[1]
+        except UnboundLocalError:
+            return "no iperf test results: failed"
 
     def speed(self):
         with open(self.iperf_out) as f:
             for line in f.readlines():
                 if "bits" in line:
                     match = line
-        return match.rsplit(' ', 2)[1]
+        try:
+            return match.rsplit(' ', 2)[1]
+        except UnboundLocalError:
+            return "no iperf test results: failed"
 
-    def stop_server(self):
-        return
+    def selfcheck(self):
+        subprocess.check_output(["iperf", "-c", "localhost", "-t", "1"])
 
-def iperf_selfcheck():
-    subprocess.check_output(["iperf", "-c", "localhost", "-t", "1"])
+    def hostcheck(self, nodes):
+        # Wait for other nodes to start their servers...
+        for node in nodes:
+            msg = "checking iperf on {}".format(node[1])
+            hookenv.log(msg)
+            cmd = "iperf -t1 -c {}".format(node[1])
+            os.system(cmd)
 
-def iperf_hostcheck(nodes):
-    # safe_status('active', 'Leader is checking all other hosts...')  
-    # Wait for other nodes to start their servers...
-    for node in nodes:
-        msg = "checking iperf on {}".format(node[1])
-        hookenv.log(msg)
-        cmd = "iperf -t1 -c {}".format(node[1])
-        os.system(cmd)
 
 def safe_status(workload, status):
     cfg = hookenv.config()
     if not cfg.get('supress_status'):
         hookenv.status_set(workload, status)
+
 
 def ping(input, ping_time, ping_tries):
     ping_string = "ping -c {} -w {} {} > /dev/null 2>&1"\
@@ -90,36 +86,80 @@ def check_local_hostname():
     return result, stderr
 
 
+def check_local_mtu(required_mtu, iface_mtu):
+    if required_mtu == 0:
+        return 0 
+    elif 0 <= (int(iface_mtu) - int(required_mtu)) <= 12:
+        return 100 
+    else:
+        return 200 
+
+
+def check_min_speed(min_speed, iperf_speed):
+    if min_speed == 0:
+        return 0
+    elif min_speed <= iperf_speed:
+        return 100
+    elif min_speed > iperf_speed:
+        return 200
+
+
 def check_nodes(nodes, iperf_client=False):
+    cfg = hookenv.config()
     local_ip = hookenv.unit_private_ip()
     ip_prefix = '.'.join(local_ip.split('.')[0:3])
     iface_line = subprocess.check_output(["ip", "route", "get", ip_prefix])
     primary_iface = str(iface_line).split('dev')[1].split(' ')[1]
     iface_mtu = get_nic_mtu(primary_iface)
+    required_mtu = cfg.get('required_mtu')
+    min_speed = cfg.get('min_speed')
     msg = "MTU for iface: {} is {}".format(primary_iface, iface_mtu)
     hookenv.log(msg, 'INFO')
+    #if required_mtu != 0 and not 0 <= (int(iface_mtu) - int(required_mtu)) <= 12:
+    #    iperf_status = ", local mtu check failed, required_mtu: {}, iface mtu: {}".format(required_mtu, iface_mtu)
+    #elif required_mtu == 0 or 0 <= (int(iface_mtu) - int(required_mtu)) <= 12:
     if not iperf_client:
         iperf = Iperf()
         mtu = iperf.mtu()
         speed = iperf.speed()
-        if iface_mtu == mtu:
-            iperf_status = ", mtu: {}, {} mbit/s".format(mtu, speed)
+        # Make space for 8 or 12 byte variable overhead (TCP options)
+        if "failed" not in mtu:
+            if 0 <= (int(iface_mtu) - int(mtu)) <= 12:
+                iperf_status = ", net mtu ok: {}".format(iface_mtu)
+            else:
+                iperf_status = ", net mtu failed, mismatch: {} packet vs {} on iface {}".format(
+                    mtu, iface_mtu, primary_iface)
         else:
-            iperf_status = ", mtu mismatch: {} packet vs {} on iface {}, {} mbits/s".format(mtu, iface_mtu, primary_iface, speed)
+            iperf_status = ", network mtu check failed"
+        if "failed" not in speed:
+            if check_min_speed(min_speed, int(speed)) == 0:
+                iperf_status = iperf_status + ", {} mbit/s".format(speed)
+            if check_min_speed(min_speed, int(speed)) == 100:
+                iperf_status = iperf_status + ", speed ok: {} mbit/s".format(speed)
+            if check_min_speed(min_speed, int(speed)) == 200:
+                iperf_status = iperf_status + ", speed failed: {} < {} mbit/s".format(speed, str(min_speed))
+        else:
+            iperf_status = iperf_status + ", iperf speed check failed"
     elif iperf_client:
         iperf_status = ", iperf leader, mtu: {}".format(iface_mtu)
-        iperf_hostcheck(nodes)
+        iperf = Iperf()
+        iperf.hostcheck(nodes)
+    if check_local_mtu(required_mtu, iface_mtu) == 100:
+        iperf_status = iperf_status + ", local mtu ok, required: {}".format(required_mtu)
+    elif check_local_mtu(required_mtu, iface_mtu) == 200:
+        iperf_status = iperf_status + ", local mtu failed, required: {}, iface: {}".format(required_mtu, iface_mtu)
     hookenv.log('doing other things after iperf', 'INFO')
-    cfg = hookenv.config()
     cfg_check_local_hostname = cfg.get('check_local_hostname')
     if cfg_check_local_hostname:
         no_hostname = check_local_hostname()
         if no_hostname[0] == '':
             no_hostname = ', local hostname ok'
-            hookenv.log('Local hostname lookup OK: {}'.format(str(no_hostname)), 'INFO')
+            hookenv.log('Local hostname lookup OK: {}'.format(
+                str(no_hostname)), 'INFO')
         else:
             no_hostname = ', local hostname failed'
-            hookenv.log('Local hostname lookup FAILED: {}'.format(str(no_hostname)), 'ERROR')
+            hookenv.log('Local hostname lookup FAILED: {}'.format(
+                str(no_hostname)), 'ERROR')
 
     no_ping = check_ping(nodes)
     no_dns = check_dns(nodes)
@@ -157,9 +197,11 @@ def check_nodes(nodes, iperf_client=False):
             .format(dns_status, str(no_rev), str(no_fwd))
 
     if cfg_check_local_hostname:
-        check_status = '{}{}{}{}'.format(no_ping, str(no_hostname), str(dns_status), str(iperf_status)) 
+        check_status = '{}{}{}{}'.format(no_ping, str(
+            no_hostname), str(dns_status), str(iperf_status))
     else:
-        check_status = '{}{}{}'.format(no_ping, str(dns_status), str(iperf_status))
+        check_status = '{}{}{}'.format(
+            no_ping, str(dns_status), str(iperf_status))
 
     if 'failed' in check_status:
         workload = 'blocked'
