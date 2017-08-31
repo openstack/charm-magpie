@@ -26,7 +26,6 @@ The MTU size reported by iperf is sometimes 8 or 12 bytes less than the configur
 MTU on the interface. This is due to TCP options not being included in the measurement,
 and therefore we ignore that difference and report everything OK.
 
-
 # Workload Status
 
 In addition to ICMP and DNS status messages, if a networking problem is
@@ -83,6 +82,7 @@ This charm also supports the following config values:
     type: int
   required_mtu:
     default: 0
+<<<<<<< HEAD
     description: |
         Desired MTU for all nodes - block if the unit MTU is different 
         (accounting for encapsulation). 0 disables.
@@ -92,6 +92,13 @@ This charm also supports the following config values:
     description: |
         Minimum transfer speed in mbits/s required to pass the test. 
         0 disables.
+=======
+    decription: Desired MTU for all nodes - block if the unit MTU is different (accounting for encapsulation). 0 disables.
+    type: int
+  min_speed:
+    default: 0
+    description: Minimum transfer speed in mbits/s required to pass the test. 0 disables.
+>>>>>>> 81c98c029bf014e65b4df5f88f37847903323dee
     type: int
 ```
 
