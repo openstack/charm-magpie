@@ -1,10 +1,8 @@
 # pylint: disable=unused-argument
 from charms.reactive import when, when_not, set_state, remove_state
-from charms.reactive.bus import get_state
 from charmhelpers.core import hookenv
-from charms.layer.magpie_tools import check_nodes, safe_status, Iperf, install_iperf
-from charmhelpers.core.unitdata import Storage
-import threading
+from charms.layer.magpie_tools import check_nodes, safe_status, Iperf
+
 
 def _set_states(check_result):
     if 'fail' in check_result['icmp']:
@@ -16,14 +14,18 @@ def _set_states(check_result):
     else:
         remove_state('magpie-dns.failed')
 
+
 @when_not('iperf.installed')
 def install_iperf_pkg():
-    install_iperf()
+    iperf = Iperf()
+    iperf.install_iperf()
     set_state('iperf.installed')
+
 
 @when_not('magpie.joined')
 def no_peers():
     safe_status('waiting', 'Waiting for peers...')
+
 
 @when('magpie.joined')
 @when_not('leadership.is_leader', 'iperf.checked')
@@ -34,6 +36,7 @@ def check_check_state(magpie):
     if (magpie.get_iperf_checked() is not None) and \
             (hookenv.local_unit() in magpie.get_iperf_checked()):
         set_state('iperf.checked')
+
 
 @when('magpie.joined', 'leadership.is_leader')
 @when_not('iperf.servers.ready')
@@ -48,17 +51,18 @@ def leader_wait_servers_ready(magpie):
     else:
         remove_state('iperf.servers.ready')
 
+
 @when('magpie.joined')
 @when_not('leadership.is_leader', 'iperf.listening')
 def listen_for_checks(magpie):
     '''
     If im not the leader, and im not listening, then listen
     '''
-    nodes = magpie.get_nodes()
     iperf = Iperf()
     iperf.listen()
     magpie.set_iperf_server_ready()
     set_state('iperf.listening')
+
 
 @when('iperf.servers.ready', 'magpie.joined', 'leadership.is_leader')
 def client_check_hosts(magpie):
@@ -69,6 +73,7 @@ def client_check_hosts(magpie):
     _set_states(check_nodes(nodes, iperf_client=True))
     magpie.set_iperf_checked()
 
+
 @when('magpie.joined', 'iperf.checked')
 @when_not('leadership.is_leader')
 def check_all_node(magpie):
@@ -77,4 +82,3 @@ def check_all_node(magpie):
     '''
     nodes = magpie.get_nodes()
     _set_states(check_nodes(nodes))
-

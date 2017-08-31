@@ -27,3 +27,11 @@ options:
     default: False
     description: Enable this if you intend to consume this layer - supresses status messages
     type: boolean
+  required_mtu:
+    default: 0
+    description: Desired MTU for all nodes - block if the unit MTU is different (accounting for encapsulation). 0 disables.
+    type: int
+  min_speed:
+    default: 0
+    description: Minimum transfer speed in mbit/s required to pass the test. 0 disables.
+    type: int
