@@ -82,7 +82,6 @@ This charm also supports the following config values:
     type: int
   required_mtu:
     default: 0
-<<<<<<< HEAD
     description: |
         Desired MTU for all nodes - block if the unit MTU is different 
         (accounting for encapsulation). 0 disables.
@@ -92,14 +91,6 @@ This charm also supports the following config values:
     description: |
         Minimum transfer speed in mbits/s required to pass the test. 
         0 disables.
-=======
-    decription: Desired MTU for all nodes - block if the unit MTU is different (accounting for encapsulation). 0 disables.
-    type: int
-  min_speed:
-    default: 0
-    description: Minimum transfer speed in mbits/s required to pass the test. 0 disables.
->>>>>>> 81c98c029bf014e65b4df5f88f37847903323dee
-    type: int
 ```
 
 e.g.
