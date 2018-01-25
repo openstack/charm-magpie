@@ -185,10 +185,8 @@ def check_nodes(nodes, iperf_client=False):
         else:
             if no_rev:
                 no_rev = ', rev dns failed: ' + str(no_rev)
-                if no_fwd != []:
-                    no_fwd = ', fwd dns failed: ' + str(no_fwd)
-                elif no_fwd == []:
-                    no_fwd = ''
+            if no_fwd:
+                no_fwd = ', fwd dns failed: ' + str(no_fwd)
         if no_rev == []:
             no_rev = ''
         if no_fwd == []:
