@@ -9,10 +9,7 @@ peers:
   magpie:
     interface: magpie
 series:
-  - artful
-  - zesty
   - xenial
   - trusty
-  - precise
-  - yakkety
   - bionic
+  - cosmic
