@@ -282,38 +282,40 @@ def check_dns(nodes):
             hookenv.log("Forward lookup for hostname: {}, node: {},"
                         " unit_id: {}".format(str(reverse), node[0], unit_id),
                         'INFO')
-            forward, f_stderr = forward_dns(reverse, dns_server,
-                                            dns_tries, dns_time)
-            hookenv.log("Forward result for unit_id: {}, ip: {},"
-                        " exitcode: {}".format(unit_id,  forward,
-                                               str(f_stderr)))
-            if f_stderr:
-                hookenv.log("Forward FAILED for"
-                            " unit_id: {}".format(unit_id), 'ERROR')
-                if unit_id not in nofwd:
-                    nofwd.append(unit_id)
-            else:
-                hookenv.log("Forward OK for"
-                            " unit_id: {}".format(unit_id), 'INFO')
-                if unit_id in nofwd:
-                    nofwd.remove(unit_id)
-                if ip != forward:
-                    if not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$",
-                                    forward):
-                        forward = "Can not resolve hostname to IP {}"\
-                                  .format(repr(forward))
-                    hookenv.log("Original IP and Forward MATCH FAILED for"
-                                " unit_id: {}, Original: {}, Forward: {}"
-                                .format(unit_id, ip, forward), 'ERROR')
-                    if unit_id not in nomatch:
-                        nomatch.append(unit_id)
+            for rev in reverse.split():
+                forward, f_stderr = forward_dns(rev, dns_server,
+                                                dns_tries, dns_time)
+                hookenv.log("Forward result for unit_id: {}, ip: {},"
+                            " exitcode: {}".format(unit_id,  forward,
+                                                   str(f_stderr)))
+                if f_stderr:
+                    hookenv.log("Forward FAILED for"
+                                " unit_id: {}".format(unit_id), 'ERROR')
+                    if unit_id not in nofwd:
+                        nofwd.append(unit_id)
                 else:
-                    hookenv.log("Original IP and Forward MATCH OK for unit_id:"
-                                " {}, Original: {}, Forward: {}"
-                                .format(unit_id, ip, forward),
-                                'INFO')
-                    if unit_id in nomatch:
-                        nomatch.remove(unit_id)
+                    hookenv.log("Forward OK for"
+                                " unit_id: {}".format(unit_id), 'INFO')
+                    if unit_id in nofwd:
+                        nofwd.remove(unit_id)
+                    if ip != forward:
+                        if not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$",
+                                        forward):
+                            forward = "Can not resolve hostname to IP {}"\
+                                      .format(repr(forward))
+                        hookenv.log("Original IP and Forward MATCH FAILED for"
+                                    " unit_id: {}, Original: {}, Forward: {}"
+                                    .format(unit_id, ip, forward), 'ERROR')
+                        if unit_id not in nomatch:
+                            nomatch.append(unit_id)
+                    else:
+                        hookenv.log("Original IP and Forward MATCH OK for unit_id:"
+                                    " {}, Original: {}, Forward: {}"
+                                    .format(unit_id, ip, forward),
+                                    'INFO')
+                        if unit_id in nomatch:
+                            nomatch.remove(unit_id)
+                        break
 
     return norev, nofwd, nomatch
 
