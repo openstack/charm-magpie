@@ -33,9 +33,10 @@ def check_check_state(magpie):
     '''
     Servers should only update their status after iperf has checked them
     '''
-    if (magpie.get_iperf_checked() is not None) and \
-            (hookenv.local_unit() in magpie.get_iperf_checked()):
-        set_state('iperf.checked')
+    if magpie.get_iperf_checked():
+            for units in magpie.get_iperf_checked():
+                if units and hookenv.local_unit() in units:
+                    set_state('iperf.checked')
 
 
 @when('magpie.joined', 'leadership.is_leader')
