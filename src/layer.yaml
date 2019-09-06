@@ -1,2 +1,2 @@
-repo: git@github.com:andrewdmcleod/magpie-layer.git
+repo: git@github.com:openstack-charmers/magpie-layer.git
 includes: ['layer:basic', 'interface:magpie', 'layer:leadership']

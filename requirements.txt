@@ -1,0 +1,3 @@
+charm-tools
+simplejson
+flake8

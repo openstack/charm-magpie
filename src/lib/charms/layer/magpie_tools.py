@@ -88,11 +88,11 @@ def check_local_hostname():
 
 def check_local_mtu(required_mtu, iface_mtu):
     if required_mtu == 0:
-        return 0 
+        return 0
     elif 0 <= (int(iface_mtu) - int(required_mtu)) <= 12:
-        return 100 
+        return 100
     else:
-        return 200 
+        return 200
 
 
 def check_min_speed(min_speed, iperf_speed):
@@ -107,7 +107,8 @@ def check_min_speed(min_speed, iperf_speed):
 def check_nodes(nodes, iperf_client=False):
     cfg = hookenv.config()
     local_ip = hookenv.unit_private_ip()
-    iface_lines = subprocess.check_output(["ip", "route", "show", "to", "match", local_ip]).decode()
+    iface_lines = subprocess.check_output(["ip", "route", "show", "to",
+                                           "match", local_ip]).decode()
     iface_lines = iface_lines.split('\n')
     for line in iface_lines:
         if re.match('.* via .*', line) is None:
@@ -118,9 +119,11 @@ def check_nodes(nodes, iperf_client=False):
     min_speed = cfg.get('min_speed')
     msg = "MTU for iface: {} is {}".format(primary_iface, iface_mtu)
     hookenv.log(msg, 'INFO')
-    #if required_mtu != 0 and not 0 <= (int(iface_mtu) - int(required_mtu)) <= 12:
-    #    iperf_status = ", local mtu check failed, required_mtu: {}, iface mtu: {}".format(required_mtu, iface_mtu)
-    #elif required_mtu == 0 or 0 <= (int(iface_mtu) - int(required_mtu)) <= 12:
+    # if required_mtu != 0 and not 0 <= (int(iface_mtu) - int(required_mtu)) <=
+    #       12: iperf_status = ", local mtu check failed, required_mtu: {},
+    #       iface mtu: {}".format(required_mtu, iface_mtu)
+    # elif required_mtu == 0 or 0 <= (int(iface_mtu) - int(required_mtu)) <=
+    #       12:
     if not iperf_client:
         iperf = Iperf()
         mtu = iperf.mtu()
@@ -130,17 +133,19 @@ def check_nodes(nodes, iperf_client=False):
             if 0 <= (int(iface_mtu) - int(mtu)) <= 12:
                 iperf_status = ", net mtu ok: {}".format(iface_mtu)
             else:
-                iperf_status = ", net mtu failed, mismatch: {} packet vs {} on iface {}".format(
-                    mtu, iface_mtu, primary_iface)
+                iperf_status = ", net mtu failed, mismatch: {} packet vs {} \
+                on iface {}".format(mtu, iface_mtu, primary_iface)
         else:
             iperf_status = ", network mtu check failed"
         if "failed" not in speed:
             if check_min_speed(min_speed, int(speed)) == 0:
                 iperf_status = iperf_status + ", {} mbit/s".format(speed)
             if check_min_speed(min_speed, int(speed)) == 100:
-                iperf_status = iperf_status + ", speed ok: {} mbit/s".format(speed)
+                iperf_status = iperf_status + ", speed ok: {} \
+                mbit/s".format(speed)
             if check_min_speed(min_speed, int(speed)) == 200:
-                iperf_status = iperf_status + ", speed failed: {} < {} mbit/s".format(speed, str(min_speed))
+                iperf_status = iperf_status + ", speed failed: {} < {} \
+                mbit/s".format(speed, str(min_speed))
         else:
             iperf_status = iperf_status + ", iperf speed check failed"
     elif iperf_client:
@@ -148,9 +153,11 @@ def check_nodes(nodes, iperf_client=False):
         iperf = Iperf()
         iperf.hostcheck(nodes)
     if check_local_mtu(required_mtu, iface_mtu) == 100:
-        iperf_status = iperf_status + ", local mtu ok, required: {}".format(required_mtu)
+        iperf_status = iperf_status + ", local mtu ok, required: \
+            {}".format(required_mtu)
     elif check_local_mtu(required_mtu, iface_mtu) == 200:
-        iperf_status = iperf_status + ", local mtu failed, required: {}, iface: {}".format(required_mtu, iface_mtu)
+        iperf_status = iperf_status + ", local mtu failed, \
+        required: {}, iface: {}".format(required_mtu, iface_mtu)
     hookenv.log('doing other things after iperf', 'INFO')
     cfg_check_local_hostname = cfg.get('check_local_hostname')
     if cfg_check_local_hostname:
@@ -267,7 +274,7 @@ def check_dns(nodes):
                     " unit_id: {}".format(ip, node[0], unit_id), 'INFO')
         reverse, r_stderr = reverse_dns(ip, dns_server, dns_tries, dns_time)
         hookenv.log("Reverse result for unit_id: {}, hostname: {},"
-                    " exitcode: {}".format(unit_id,  str(reverse),
+                    " exitcode: {}".format(unit_id, str(reverse),
                                            str(r_stderr)))
         if r_stderr:
             hookenv.log("Reverse FAILED for"
@@ -286,7 +293,7 @@ def check_dns(nodes):
                 forward, f_stderr = forward_dns(rev, dns_server,
                                                 dns_tries, dns_time)
                 hookenv.log("Forward result for unit_id: {}, ip: {},"
-                            " exitcode: {}".format(unit_id,  forward,
+                            " exitcode: {}".format(unit_id, forward,
                                                    str(f_stderr)))
                 if f_stderr:
                     hookenv.log("Forward FAILED for"
@@ -309,8 +316,8 @@ def check_dns(nodes):
                         if unit_id not in nomatch:
                             nomatch.append(unit_id)
                     else:
-                        hookenv.log("Original IP and Forward MATCH OK for unit_id:"
-                                    " {}, Original: {}, Forward: {}"
+                        hookenv.log("Original IP and Forward MATCH OK for \
+                                    unit_id: {}, Original: {}, Forward: {}"
                                     .format(unit_id, ip, forward),
                                     'INFO')
                         if unit_id in nomatch:
