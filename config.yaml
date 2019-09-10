@@ -1,4 +1,8 @@
 options:
+  check_dns:
+    default: true
+    description: Check if peers are resolveble
+    type: boolean
   check_local_hostname:
     default: true
     description: Check if local hostname is resolvable

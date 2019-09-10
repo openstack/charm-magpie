@@ -165,8 +165,17 @@ def check_nodes(nodes, iperf_client=False):
                 str(no_hostname)), 'ERROR')
 
     no_ping = check_ping(nodes)
-    no_dns = check_dns(nodes)
-    hookenv.log("Units with DNS problems: " + str(no_dns))
+    cfg_check_dns = cfg.get('check_dns')
+    if cfg_check_dns:
+        no_dns = check_dns(nodes)
+        hookenv.log("Units with DNS problems: " + str(no_dns))
+        try:
+            dns_status
+        except NameError:
+            dns_status = ''
+    else:
+        dns_status = ''
+        no_dns = ([], [], [])
     try:
         dns_status
     except NameError:
