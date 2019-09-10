@@ -67,9 +67,9 @@ class TestDeploy(unittest.TestCase):
         """
         Take primary interface down and make sure ICMP fails.
         """
-        self.magpie_1.run("(sudo service networking stop;
-                          sleep 60;
-                          sudo service networking start) & ")
+        stoprestart = "(sudo service networking stop; sleep 60; service \
+                        networking start) & "
+        self.magpie_1.run(stoprestart)
         self.magpie_1.run("hooks/update-status")
         self.d.sentry.wait_for_messages({'magpie':
                                         {re.compile('icmp failed.*')}},
