@@ -1,4 +1,20 @@
 options:
+  check_bonds:
+    default: ''
+    description: Comma separated list of expected bonds
+    type: string
+  use_lldp:
+    default: false
+    description: Enable LLDP agent and collect data
+    type: boolean
+  check_port_description:
+    default: false
+    description: Check LLDP port description to match hostname
+    type: boolean
+  check_iperf:
+    default: true
+    description: Execute iperf network performance test
+    type: boolean
   check_dns:
     default: true
     description: Check if peers are resolveble

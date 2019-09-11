@@ -1,7 +1,7 @@
 # pylint: disable=unused-argument
 from charms.reactive import when, when_not, set_state, remove_state
 from charmhelpers.core import hookenv
-from charms.layer.magpie_tools import check_nodes, safe_status, Iperf
+from charms.layer.magpie_tools import check_nodes, safe_status, Iperf, Lldp
 
 
 def _set_states(check_result):
@@ -15,11 +15,21 @@ def _set_states(check_result):
         remove_state('magpie-dns.failed')
 
 
+@when_not('lldp.installed')
+def install_lldp_pkg():
+    if hookenv.config().get('use_lldp'):
+        lldp = Lldp()
+        lldp.install()
+        lldp.enable()
+        set_state('lldp.installed')
+
+
 @when_not('iperf.installed')
 def install_iperf_pkg():
-    iperf = Iperf()
-    iperf.install_iperf()
-    set_state('iperf.installed')
+    if hookenv.config().get('check_iperf'):
+        iperf = Iperf()
+        iperf.install_iperf()
+        set_state('iperf.installed')
 
 
 @when_not('magpie.joined')
