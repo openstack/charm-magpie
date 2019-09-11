@@ -297,11 +297,11 @@ def check_nodes(nodes, iperf_client=False):
             else:
                 iperf_status = ", network mtu check failed"
             if "failed" not in speed:
-                if check_min_speed(min_speed, int(speed)) == 0:
+                if check_min_speed(min_speed, float(speed)) == 0:
                     iperf_status = iperf_status + ", {} mbit/s".format(speed)
-                if check_min_speed(min_speed, int(speed)) == 100:
+                if check_min_speed(min_speed, float(speed)) == 100:
                     iperf_status = iperf_status + ", speed ok: {} mbit/s".format(speed)
-                if check_min_speed(min_speed, int(speed)) == 200:
+                if check_min_speed(min_speed, float(speed)) == 200:
                     iperf_status = iperf_status + ", speed failed: {} < {} mbit/s".format(speed, str(min_speed))
             else:
                 iperf_status = iperf_status + ", iperf speed check failed"
