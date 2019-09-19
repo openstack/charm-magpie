@@ -12,13 +12,16 @@ class Iperf():
     """
     Install and start a server automatically
     """
-    iperf_out = '/home/ubuntu/iperf_output.txt'
+    def __init__(self):
+        self.iperf_out = '/home/ubuntu/iperf_output.' +
+        hookenv.application_name() + '.txt'
 
     def install_iperf(self):
         apt_install("iperf")
 
     def listen(self):
-        cmd = "iperf -s -m -fm | tee " + self.iperf_out + " &"
+        ip = hookenv.network_get('magpie')['bind-addresses'][0]['addresses'][0]['address']
+        cmd = "iperf -s -m -fm -B " + ip + " | tee " + self.iperf_out + " &"
         os.system(cmd)
 
     def mtu(self):
@@ -138,12 +141,12 @@ def check_nodes(nodes, iperf_client=False):
         else:
             iperf_status = ", network mtu check failed"
         if "failed" not in speed:
-            if check_min_speed(min_speed, int(speed)) == 0:
+            if check_min_speed(min_speed, int(float(speed))) == 0:
                 iperf_status = iperf_status + ", {} mbit/s".format(speed)
-            if check_min_speed(min_speed, int(speed)) == 100:
+            if check_min_speed(min_speed, int(float(speed))) == 100:
                 iperf_status = iperf_status + ", speed ok: {} \
                 mbit/s".format(speed)
-            if check_min_speed(min_speed, int(speed)) == 200:
+            if check_min_speed(min_speed, int(float(speed))) == 200:
                 iperf_status = iperf_status + ", speed failed: {} < {} \
                 mbit/s".format(speed, str(min_speed))
         else:
