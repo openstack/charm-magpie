@@ -12,13 +12,15 @@ class Iperf():
     """
     Install and start a server automatically
     """
-    iperf_out = '/home/ubuntu/iperf_output.txt'
+    def __init__(self):
+        self.iperf_out = '/home/ubuntu/iperf_output.' + hookenv.application_name() + '.txt'
 
     def install_iperf(self):
         apt_install("iperf")
 
     def listen(self):
-        cmd = "iperf -s -m -fm | tee " + self.iperf_out + " &"
+        ip = hookenv.network_get('magpie')['bind-addresses'][0]['addresses'][0]['address']
+        cmd = "iperf -s -m -fm -B " + ip + " | tee " + self.iperf_out + " &"
         os.system(cmd)
 
     def mtu(self):
