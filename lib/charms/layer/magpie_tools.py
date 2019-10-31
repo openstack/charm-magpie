@@ -3,9 +3,69 @@
 import os
 import subprocess
 import re
+import time
+import json
 from charmhelpers.core import hookenv
-from charmhelpers.core.host import get_nic_mtu
+from charmhelpers.core.host import get_nic_mtu, service_start, service_running
 from charmhelpers.fetch import apt_install
+
+
+class Lldp():
+    enabled = False
+    parsed_data = None
+
+    def __init__(self):
+        self.lldp_out = '/home/ubuntu/lldp_output.' + hookenv.application_name() + '.txt'
+
+    def install(self):
+        apt_install("lldpd")
+
+    def disable_i40e_lldp_agent(self):
+        path = '/sys/kernel/debug/i40e'
+        if os.path.isdir(path):
+            hookenv.log('Disabling NIC internal LLDP agent','INFO')
+            for r,dirs,files in os.walk(path):
+                for d in dirs:
+                    with open("{}/{}/command".format(path,d),"w") as fh:
+                        fh.write('lldp stop')
+
+    def enable(self):
+        self.disable_i40e_lldp_agent()
+        if not service_running('lldpd'):
+            service_start('lldpd')
+            hookenv.log('Waiting to collect LLDP data','INFO')
+            time.sleep(30)
+            enabled=True
+
+    def collect_data(self):
+        cmd = "lldpcli show neighbors details -f json | tee " + self.lldp_out
+        os.system(cmd)
+
+    def data(self):
+        if not self.parsed_data:
+            with open(self.lldp_out, 'r') as f:
+                self.parsed_data = json.load(f)
+        return self.parsed_data
+
+    def get_interface(self,iface):
+        for i in self.data()['lldp']['interface']:
+            if iface in i:
+                return i[iface]
+        return None
+
+    def get_interface_vlan(self,iface):
+        try:
+            return  self.get_interface(iface)['vlan']['vlan-id']
+        except (KeyError,TypeError):
+            hookenv.log('No LLDP data for {}'.format(iface),'INFO')
+            return None
+
+    def get_interface_port_descr(self,iface):
+        try:
+            return  self.get_interface(iface)['port']['descr']
+        except (KeyError,TypeError):
+            hookenv.log('No LLDP data for {}'.format(iface),'INFO')
+            return None
 
 
 class Iperf():
@@ -90,11 +150,11 @@ def check_local_hostname():
 
 def check_local_mtu(required_mtu, iface_mtu):
     if required_mtu == 0:
-        return 0 
+        return 0
     elif 0 <= (int(iface_mtu) - int(required_mtu)) <= 12:
-        return 100 
+        return 100
     else:
-        return 200 
+        return 200
 
 
 def check_min_speed(min_speed, iperf_speed):
@@ -104,6 +164,95 @@ def check_min_speed(min_speed, iperf_speed):
         return 100
     elif min_speed > iperf_speed:
         return 200
+
+
+def check_port_description(lldp):
+    iface_dir = "/sys/class/net"
+    status=None
+    local_hostname = subprocess.check_output('hostname', shell=True)\
+        .decode('utf-8').rstrip()
+    for r,dirs,files in os.walk(iface_dir):
+        for d in dirs:
+            if d == 'lo':
+                continue
+            if d.startswith('vnet'):
+                continue
+            if d.startswith('veth'):
+                continue
+            if check_iface_type(d) == 'eth':
+                if not check_iface_down(d):
+                    desc = lldp.get_interface_port_descr(d)
+                    hookenv.log("Port {} description {}".format(d,desc),
+                                'INFO')
+                    if desc:
+                        if not re.search(local_hostname,desc):
+                            if status:
+                                status="{} {}:{}"\
+                                .format(status,d,desc)
+                            else:
+                                status="{}:{}".format(d,desc)
+    if status:
+        return "ports failed: {}".format(status)
+    else:
+        return "ports ok"
+
+
+def check_iface_type(iface):
+    iface_dir = "/sys/class/net/{}".format(iface)
+    with open("{}/uevent".format(iface_dir)) as fos:
+        content = fos.read()
+        if re.search('DEVTYPE', content):
+            return "complex"
+    return 'eth'
+
+
+def check_iface_down(iface):
+    iface_dir = "/sys/class/net/{}".format(iface)
+    with open("{}/operstate".format(iface_dir)) as fos:
+        content = fos.read()
+        if not re.search('up', content):
+            return "down"
+    with open("{}/carrier".format(iface_dir)) as fos:
+        content = fos.read()
+        if not re.search('1', content):
+            return "down"
+    return None
+
+
+def check_bond(bond,lldp=None):
+    bond_path = "/sys/class/net/{}".format(bond)
+    if not os.path.isdir( bond_path ):
+        return "missing"
+    if check_iface_down(bond):
+        return "down"
+    with open("{}/bonding/slaves".format(bond_path)) as fos:
+        content = fos.read()
+        vlan=None
+        for slave in content.split():
+            if check_iface_down(slave):
+                return "{} down".format(slave)
+            if lldp:
+                if vlan:
+                    if not vlan == lldp.get_interface_vlan(slave):
+                        return "vlan mismatch"
+                else:
+                    vlan = lldp.get_interface_vlan(slave)
+    return None
+
+
+def check_bonds(bonds,lldp=None):
+    bonds_status=None
+    for bond in [b.strip() for b in bonds.split(',')]:
+        bond_status = check_bond(bond,lldp)
+        if bond_status:
+            if bonds_status:
+                bonds_status="{} {}:{}".format(bonds_status,bond,bond_status)
+            else:
+                bonds_status="{}:{}".format(bond,bond_status)
+    if bonds_status:
+        return "bonds failed: {}".format(bonds_status)
+    else:
+        return "bonds ok"
 
 
 def check_nodes(nodes, iperf_client=False):
@@ -123,32 +272,49 @@ def check_nodes(nodes, iperf_client=False):
     #if required_mtu != 0 and not 0 <= (int(iface_mtu) - int(required_mtu)) <= 12:
     #    iperf_status = ", local mtu check failed, required_mtu: {}, iface mtu: {}".format(required_mtu, iface_mtu)
     #elif required_mtu == 0 or 0 <= (int(iface_mtu) - int(required_mtu)) <= 12:
-    if not iperf_client:
-        iperf = Iperf()
-        mtu = iperf.mtu()
-        speed = iperf.speed()
-        # Make space for 8 or 12 byte variable overhead (TCP options)
-        if "failed" not in mtu:
-            if 0 <= (int(iface_mtu) - int(mtu)) <= 12:
-                iperf_status = ", net mtu ok: {}".format(iface_mtu)
+    port_status=""
+    lldp = None
+    if cfg.get('use_lldp'):
+        lldp = Lldp()
+        lldp.enable()
+        lldp.collect_data()
+        if cfg.get('check_port_description'):
+            port_status = "{}, ".format(check_port_description(lldp))
+    cfg_check_bonds = cfg.get('check_bonds',lldp)
+    bond_status=""
+    if cfg_check_bonds:
+            bond_status = "{}, ".format(check_bonds(cfg_check_bonds,lldp))
+    cfg_check_iperf = cfg.get('check_iperf')
+    if cfg_check_iperf:
+        hookenv.log("Running iperf test", 'INFO')
+        if not iperf_client:
+            iperf = Iperf()
+            mtu = iperf.mtu()
+            speed = iperf.speed()
+            # Make space for 8 or 12 byte variable overhead (TCP options)
+            if "failed" not in mtu:
+                if 0 <= (int(iface_mtu) - int(mtu)) <= 12:
+                    iperf_status = ", net mtu ok: {}".format(iface_mtu)
+                else:
+                    iperf_status = ", net mtu failed, mismatch: {} packet vs {} on iface {}".format(
+                        mtu, iface_mtu, primary_iface)
             else:
-                iperf_status = ", net mtu failed, mismatch: {} packet vs {} on iface {}".format(
-                    mtu, iface_mtu, primary_iface)
-        else:
-            iperf_status = ", network mtu check failed"
-        if "failed" not in speed:
-            if check_min_speed(min_speed, int(float(speed))) == 0:
-                iperf_status = iperf_status + ", {} mbit/s".format(speed)
-            if check_min_speed(min_speed, int(float(speed))) == 100:
-                iperf_status = iperf_status + ", speed ok: {} mbit/s".format(speed)
-            if check_min_speed(min_speed, int(float(speed))) == 200:
-                iperf_status = iperf_status + ", speed failed: {} < {} mbit/s".format(speed, str(min_speed))
-        else:
-            iperf_status = iperf_status + ", iperf speed check failed"
-    elif iperf_client:
-        iperf_status = ", iperf leader, mtu: {}".format(iface_mtu)
-        iperf = Iperf()
-        iperf.hostcheck(nodes)
+                iperf_status = ", network mtu check failed"
+            if "failed" not in speed:
+                if check_min_speed(min_speed, float(speed)) == 0:
+                    iperf_status = iperf_status + ", {} mbit/s".format(speed)
+                if check_min_speed(min_speed, float(speed)) == 100:
+                    iperf_status = iperf_status + ", speed ok: {} mbit/s".format(speed)
+                if check_min_speed(min_speed, float(speed)) == 200:
+                    iperf_status = iperf_status + ", speed failed: {} < {} mbit/s".format(speed, str(min_speed))
+            else:
+                iperf_status = iperf_status + ", iperf speed check failed"
+        elif iperf_client:
+            iperf_status = ", iperf leader, mtu: {}".format(iface_mtu)
+            iperf = Iperf()
+            iperf.hostcheck(nodes)
+    else:
+        iperf_status = ""
     if check_local_mtu(required_mtu, iface_mtu) == 100:
         iperf_status = iperf_status + ", local mtu ok, required: {}".format(required_mtu)
     elif check_local_mtu(required_mtu, iface_mtu) == 200:
@@ -167,8 +333,17 @@ def check_nodes(nodes, iperf_client=False):
                 str(no_hostname)), 'ERROR')
 
     no_ping = check_ping(nodes)
-    no_dns = check_dns(nodes)
-    hookenv.log("Units with DNS problems: " + str(no_dns))
+    cfg_check_dns = cfg.get('check_dns')
+    if cfg_check_dns:
+        no_dns = check_dns(nodes)
+        hookenv.log("Units with DNS problems: " + str(no_dns))
+        try:
+            dns_status
+        except NameError:
+            dns_status = ''
+    else:
+        dns_status = ''
+        no_dns = ([], [], [])
     try:
         dns_status
     except NameError:
@@ -200,11 +375,13 @@ def check_nodes(nodes, iperf_client=False):
             .format(dns_status, str(no_rev), str(no_fwd))
 
     if cfg_check_local_hostname:
-        check_status = '{}{}{}{}'.format(no_ping, str(
-            no_hostname), str(dns_status), str(iperf_status))
+        check_status = '{}{}{}{}{}{}'.format(
+            port_status,bond_status,no_ping,
+            str(no_hostname), str(dns_status), str(iperf_status))
     else:
-        check_status = '{}{}{}'.format(
-            no_ping, str(dns_status), str(iperf_status))
+        check_status = '{}{}{}{}{}'.format(
+            port_status,bond_status,no_ping,
+            str(dns_status), str(iperf_status))
 
     if 'failed' in check_status:
         workload = 'blocked'
