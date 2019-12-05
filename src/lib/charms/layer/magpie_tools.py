@@ -13,8 +13,8 @@ class Iperf():
     Install and start a server automatically
     """
     def __init__(self):
-        self.iperf_out = '/home/ubuntu/iperf_output.' +
-        hookenv.application_name() + '.txt'
+        self.iperf_out = '/home/ubuntu/iperf_output.' + \
+            hookenv.application_name() + '.txt'
 
     def install_iperf(self):
         apt_install("iperf")
