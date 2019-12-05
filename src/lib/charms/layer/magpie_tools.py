@@ -20,7 +20,8 @@ class Iperf():
         apt_install("iperf")
 
     def listen(self):
-        ip = hookenv.network_get('magpie')['bind-addresses'][0]['addresses'][0]['address']
+        ip = hookenv.network_get('magpie')[
+            'bind-addresses'][0]['addresses'][0]['address']
         cmd = "iperf -s -m -fm -B " + ip + " | tee " + self.iperf_out + " &"
         os.system(cmd)
 
