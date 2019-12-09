@@ -1,5 +1,0 @@
-series: "xenial"
-services:
-  magpie:
-    charm: "cs:~admcleod/magpie"
-    num_units: 2
