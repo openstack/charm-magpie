@@ -15,7 +15,8 @@ class Lldp():
     parsed_data = None
 
     def __init__(self):
-        self.lldp_out = '/home/ubuntu/lldp_output.' + hookenv.application_name() + '.txt'
+        self.lldp_out = '/home/ubuntu/lldp_output.' +\
+            hookenv.application_name() + '.txt'
 
     def install(self):
         apt_install("lldpd")
@@ -23,19 +24,18 @@ class Lldp():
     def disable_i40e_lldp_agent(self):
         path = '/sys/kernel/debug/i40e'
         if os.path.isdir(path):
-            hookenv.log('Disabling NIC internal LLDP agent','INFO')
-            for r,dirs,files in os.walk(path):
+            hookenv.log('Disabling NIC internal LLDP agent', 'INFO')
+            for r, dirs, files in os.walk(path):
                 for d in dirs:
-                    with open("{}/{}/command".format(path,d),"w") as fh:
+                    with open("{}/{}/command".format(path, d), "w") as fh:
                         fh.write('lldp stop')
 
     def enable(self):
         self.disable_i40e_lldp_agent()
         if not service_running('lldpd'):
             service_start('lldpd')
-            hookenv.log('Waiting to collect LLDP data','INFO')
+            hookenv.log('Waiting to collect LLDP data', 'INFO')
             time.sleep(30)
-            enabled=True
 
     def collect_data(self):
         cmd = "lldpcli show neighbors details -f json | tee " + self.lldp_out
@@ -47,24 +47,24 @@ class Lldp():
                 self.parsed_data = json.load(f)
         return self.parsed_data
 
-    def get_interface(self,iface):
+    def get_interface(self, iface):
         for i in self.data()['lldp']['interface']:
             if iface in i:
                 return i[iface]
         return None
 
-    def get_interface_vlan(self,iface):
+    def get_interface_vlan(self, iface):
         try:
-            return  self.get_interface(iface)['vlan']['vlan-id']
-        except (KeyError,TypeError):
-            hookenv.log('No LLDP data for {}'.format(iface),'INFO')
+            return self.get_interface(iface)['vlan']['vlan-id']
+        except (KeyError, TypeError):
+            hookenv.log('No LLDP data for {}'.format(iface), 'INFO')
             return None
 
-    def get_interface_port_descr(self,iface):
+    def get_interface_port_descr(self, iface):
         try:
-            return  self.get_interface(iface)['port']['descr']
-        except (KeyError,TypeError):
-            hookenv.log('No LLDP data for {}'.format(iface),'INFO')
+            return self.get_interface(iface)['port']['descr']
+        except (KeyError, TypeError):
+            hookenv.log('No LLDP data for {}'.format(iface), 'INFO')
             return None
 
 
@@ -73,13 +73,15 @@ class Iperf():
     Install and start a server automatically
     """
     def __init__(self):
-        self.iperf_out = '/home/ubuntu/iperf_output.' + hookenv.application_name() + '.txt'
+        self.iperf_out = '/home/ubuntu/iperf_output.' + \
+            hookenv.application_name() + '.txt'
 
     def install_iperf(self):
         apt_install("iperf")
 
     def listen(self):
-        ip = hookenv.network_get('magpie')['bind-addresses'][0]['addresses'][0]['address']
+        ip = hookenv.network_get('magpie')[
+            'bind-addresses'][0]['addresses'][0]['address']
         cmd = "iperf -s -m -fm -B " + ip + " | tee " + self.iperf_out + " &"
         os.system(cmd)
 
@@ -168,10 +170,10 @@ def check_min_speed(min_speed, iperf_speed):
 
 def check_port_description(lldp):
     iface_dir = "/sys/class/net"
-    status=None
+    status = None
     local_hostname = subprocess.check_output('hostname', shell=True)\
         .decode('utf-8').rstrip()
-    for r,dirs,files in os.walk(iface_dir):
+    for r, dirs, files in os.walk(iface_dir):
         for d in dirs:
             if d == 'lo':
                 continue
@@ -182,15 +184,15 @@ def check_port_description(lldp):
             if check_iface_type(d) == 'eth':
                 if not check_iface_down(d):
                     desc = lldp.get_interface_port_descr(d)
-                    hookenv.log("Port {} description {}".format(d,desc),
+                    hookenv.log("Port {} description {}".format(d, desc),
                                 'INFO')
                     if desc:
-                        if not re.search(local_hostname,desc):
+                        if not re.search(local_hostname, desc):
                             if status:
-                                status="{} {}:{}"\
-                                .format(status,d,desc)
+                                status = "{} {}:{}"\
+                                    .format(status, d, desc)
                             else:
-                                status="{}:{}".format(d,desc)
+                                status = "{}:{}".format(d, desc)
     if status:
         return "ports failed: {}".format(status)
     else:
@@ -219,15 +221,15 @@ def check_iface_down(iface):
     return None
 
 
-def check_bond(bond,lldp=None):
+def check_bond(bond, lldp=None):
     bond_path = "/sys/class/net/{}".format(bond)
-    if not os.path.isdir( bond_path ):
+    if not os.path.isdir(bond_path):
         return "missing"
     if check_iface_down(bond):
         return "down"
     with open("{}/bonding/slaves".format(bond_path)) as fos:
         content = fos.read()
-        vlan=None
+        vlan = None
         for slave in content.split():
             if check_iface_down(slave):
                 return "{} down".format(slave)
@@ -240,15 +242,16 @@ def check_bond(bond,lldp=None):
     return None
 
 
-def check_bonds(bonds,lldp=None):
-    bonds_status=None
+def check_bonds(bonds, lldp=None):
+    bonds_status = None
     for bond in [b.strip() for b in bonds.split(',')]:
-        bond_status = check_bond(bond,lldp)
+        bond_status = check_bond(bond, lldp)
         if bond_status:
             if bonds_status:
-                bonds_status="{} {}:{}".format(bonds_status,bond,bond_status)
+                bonds_status = "{} {}:{}\
+                        ".format(bonds_status, bond, bond_status)
             else:
-                bonds_status="{}:{}".format(bond,bond_status)
+                bonds_status = "{}:{}".format(bond, bond_status)
     if bonds_status:
         return "bonds failed: {}".format(bonds_status)
     else:
@@ -258,7 +261,8 @@ def check_bonds(bonds,lldp=None):
 def check_nodes(nodes, iperf_client=False):
     cfg = hookenv.config()
     local_ip = hookenv.unit_private_ip()
-    iface_lines = subprocess.check_output(["ip", "route", "show", "to", "match", local_ip]).decode()
+    iface_lines = subprocess.check_output(["ip", "route", "show", "to",
+                                           "match", local_ip]).decode()
     iface_lines = iface_lines.split('\n')
     for line in iface_lines:
         if re.match('.* via .*', line) is None:
@@ -269,10 +273,7 @@ def check_nodes(nodes, iperf_client=False):
     min_speed = cfg.get('min_speed')
     msg = "MTU for iface: {} is {}".format(primary_iface, iface_mtu)
     hookenv.log(msg, 'INFO')
-    #if required_mtu != 0 and not 0 <= (int(iface_mtu) - int(required_mtu)) <= 12:
-    #    iperf_status = ", local mtu check failed, required_mtu: {}, iface mtu: {}".format(required_mtu, iface_mtu)
-    #elif required_mtu == 0 or 0 <= (int(iface_mtu) - int(required_mtu)) <= 12:
-    port_status=""
+    port_status = ""
     lldp = None
     if cfg.get('use_lldp'):
         lldp = Lldp()
@@ -280,10 +281,10 @@ def check_nodes(nodes, iperf_client=False):
         lldp.collect_data()
         if cfg.get('check_port_description'):
             port_status = "{}, ".format(check_port_description(lldp))
-    cfg_check_bonds = cfg.get('check_bonds',lldp)
-    bond_status=""
+    cfg_check_bonds = cfg.get('check_bonds', lldp)
+    bond_status = ""
     if cfg_check_bonds:
-            bond_status = "{}, ".format(check_bonds(cfg_check_bonds,lldp))
+        bond_status = "{}, ".format(check_bonds(cfg_check_bonds, lldp))
     cfg_check_iperf = cfg.get('check_iperf')
     if cfg_check_iperf:
         hookenv.log("Running iperf test", 'INFO')
@@ -296,17 +297,20 @@ def check_nodes(nodes, iperf_client=False):
                 if 0 <= (int(iface_mtu) - int(mtu)) <= 12:
                     iperf_status = ", net mtu ok: {}".format(iface_mtu)
                 else:
-                    iperf_status = ", net mtu failed, mismatch: {} packet vs {} on iface {}".format(
-                        mtu, iface_mtu, primary_iface)
+                    iperf_status = ", net mtu failed, mismatch: {} packet vs {}\
+                    on iface {}".format(mtu, iface_mtu, primary_iface)
             else:
                 iperf_status = ", network mtu check failed"
             if "failed" not in speed:
                 if check_min_speed(min_speed, float(speed)) == 0:
                     iperf_status = iperf_status + ", {} mbit/s".format(speed)
                 if check_min_speed(min_speed, float(speed)) == 100:
-                    iperf_status = iperf_status + ", speed ok: {} mbit/s".format(speed)
+                    iperf_status = iperf_status + ", speed ok: \
+                            {} mbit/s".format(speed)
                 if check_min_speed(min_speed, float(speed)) == 200:
-                    iperf_status = iperf_status + ", speed failed: {} < {} mbit/s".format(speed, str(min_speed))
+                    iperf_status = iperf_status + ", speed \
+                            failed: {} < {} mbit/s\
+                            ".format(speed, str(min_speed))
             else:
                 iperf_status = iperf_status + ", iperf speed check failed"
         elif iperf_client:
@@ -316,9 +320,11 @@ def check_nodes(nodes, iperf_client=False):
     else:
         iperf_status = ""
     if check_local_mtu(required_mtu, iface_mtu) == 100:
-        iperf_status = iperf_status + ", local mtu ok, required: {}".format(required_mtu)
+        iperf_status = iperf_status + ", local mtu ok, required: \
+            {}".format(required_mtu)
     elif check_local_mtu(required_mtu, iface_mtu) == 200:
-        iperf_status = iperf_status + ", local mtu failed, required: {}, iface: {}".format(required_mtu, iface_mtu)
+        iperf_status = iperf_status + ", local mtu failed, \
+        required: {}, iface: {}".format(required_mtu, iface_mtu)
     hookenv.log('doing other things after iperf', 'INFO')
     cfg_check_local_hostname = cfg.get('check_local_hostname')
     if cfg_check_local_hostname:
@@ -376,11 +382,11 @@ def check_nodes(nodes, iperf_client=False):
 
     if cfg_check_local_hostname:
         check_status = '{}{}{}{}{}{}'.format(
-            port_status,bond_status,no_ping,
+            port_status, bond_status, no_ping,
             str(no_hostname), str(dns_status), str(iperf_status))
     else:
         check_status = '{}{}{}{}{}'.format(
-            port_status,bond_status,no_ping,
+            port_status, bond_status, no_ping,
             str(dns_status), str(iperf_status))
 
     if 'failed' in check_status:
@@ -446,7 +452,7 @@ def check_dns(nodes):
                     " unit_id: {}".format(ip, node[0], unit_id), 'INFO')
         reverse, r_stderr = reverse_dns(ip, dns_server, dns_tries, dns_time)
         hookenv.log("Reverse result for unit_id: {}, hostname: {},"
-                    " exitcode: {}".format(unit_id,  str(reverse),
+                    " exitcode: {}".format(unit_id, str(reverse),
                                            str(r_stderr)))
         if r_stderr:
             hookenv.log("Reverse FAILED for"
@@ -465,7 +471,7 @@ def check_dns(nodes):
                 forward, f_stderr = forward_dns(rev, dns_server,
                                                 dns_tries, dns_time)
                 hookenv.log("Forward result for unit_id: {}, ip: {},"
-                            " exitcode: {}".format(unit_id,  forward,
+                            " exitcode: {}".format(unit_id, forward,
                                                    str(f_stderr)))
                 if f_stderr:
                     hookenv.log("Forward FAILED for"
@@ -478,8 +484,8 @@ def check_dns(nodes):
                     if unit_id in nofwd:
                         nofwd.remove(unit_id)
                     if ip != forward:
-                        if not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$",
-                                        forward):
+                        mstr = '(r\"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$"'
+                        if not re.match(mstr, forward):
                             forward = "Can not resolve hostname to IP {}"\
                                       .format(repr(forward))
                         hookenv.log("Original IP and Forward MATCH FAILED for"
@@ -488,8 +494,8 @@ def check_dns(nodes):
                         if unit_id not in nomatch:
                             nomatch.append(unit_id)
                     else:
-                        hookenv.log("Original IP and Forward MATCH OK for unit_id:"
-                                    " {}, Original: {}, Forward: {}"
+                        hookenv.log("Original IP and Forward MATCH OK for \
+                                    unit_id: {}, Original: {}, Forward: {}"
                                     .format(unit_id, ip, forward),
                                     'INFO')
                         if unit_id in nomatch:
