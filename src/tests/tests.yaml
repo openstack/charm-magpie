@@ -1,3 +1,11 @@
-reset: false
-packages:
-  - amulet
+charm_name: magpie
+gate_bundles:
+  - xenial-distro
+  - bionic-distro
+smoke_bundles:
+  - xenial-distro
+  - bionic-distro
+configure:
+  - zaza.openstack.charm_tests.magpie.setup.configure_magpie
+tests:
+  - zaza.openstack.charm_tests.magpie.tests.MagpieTest
