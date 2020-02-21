@@ -3,6 +3,9 @@ from charms.reactive import when, when_not, set_state, remove_state
 from charmhelpers.core import hookenv
 from charms.layer.magpie_tools import check_nodes, safe_status, Iperf, Lldp
 
+import charmhelpers.contrib.openstack.utils as os_utils
+import charmhelpers.fetch as fetch
+
 
 def _set_states(check_result):
     if 'fail' in check_result['icmp']:
@@ -15,6 +18,22 @@ def _set_states(check_result):
         remove_state('magpie-dns.failed')
 
 
+@when_not('charm.installed')
+def install():
+    """Configure APT source.
+
+    The many permutations of package source syntaxes in use does not allow us
+    to simply call `add-apt-repository` on the unit and we need to make use
+    of `charmhelpers.fetch.add_source` for this to be universally useful.
+    """
+    source, key = os_utils.get_source_and_pgp_key(
+        hookenv.config().get('source', 'distro'))
+    fetch.add_source(source, key)
+    fetch.apt_update(fatal=True)
+    set_state('charm.installed')
+
+
+@when('charm.installed')
 @when_not('lldp.installed')
 def install_lldp_pkg():
     if hookenv.config().get('use_lldp'):
@@ -24,6 +43,7 @@ def install_lldp_pkg():
         set_state('lldp.installed')
 
 
+@when('charm.installed')
 @when_not('iperf.installed')
 def install_iperf_pkg():
     if hookenv.config().get('check_iperf'):

@@ -1,0 +1,2 @@
+# charmhelpers.contrib.openstack.utils pulls in a dep that require this
+netifaces
