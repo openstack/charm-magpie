@@ -9,9 +9,8 @@ peers:
   magpie:
     interface: magpie
 series:
-  - xenial
-  - trusty
+  - trusty 
+  - xenial 
   - bionic
-  - cosmic
-  - disco
   - eoan
+  - focal
