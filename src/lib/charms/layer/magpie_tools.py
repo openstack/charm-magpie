@@ -283,9 +283,11 @@ def check_bond(bond, lldp=None):
                         return "vlan mismatch"
                 else:
                     vlan = lldp.get_interface_vlan(slave)
-            if get_bond_mode(bond) == "lacp":
+        if get_bond_mode(bond) == "lacp":
+            for slave in content.split():
                 if check_aggregator_id(bond, slave):
                     return "Aggregator ID mismatch"
+            for slave in content.split():
                 if check_lacp_port_state(slave):
                     return "LACP port state mismatch"
     return None
