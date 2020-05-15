@@ -221,6 +221,50 @@ def check_iface_down(iface):
     return None
 
 
+def check_aggregator_id(bond_iface, slave_iface):
+    bond_iface_dir = "/sys/class/net/{}/bonding".format(bond_iface)
+    slave_iface_dir = "/sys/class/net/{}/bonding_slave".format(slave_iface)
+    with open("{}/ad_aggregator".format(bond_iface_dir)) as fos:
+        bond_aggr_value = fos.read()
+    with open("{}/ad_aggregator_id".format(slave_iface_dir)) as fos:
+        slave_aggr_value = fos.read()
+    if bond_aggr_value != slave_aggr_value:
+        return "aggregate_id_mismatch"
+    return None
+
+
+def check_lacp_port_state(iface):
+    iface_dir = "/sys/class/net/{}/bonding_slave".format(iface)
+    with open("{}/ad_actor_oper_port_state".format(iface_dir)) as fos:
+        actor_port_state = fos.read()
+    with open("{}/ad_partner_oper_port_state".format(iface_dir)) as fos:
+        partner_port_state = fos.read()
+    if actor_port_state != partner_port_state:
+        return "lacp_port_state_mismatch"
+    return None
+
+
+def get_bond_mode(bond):
+    bond_path = "/sys/class/net/{}".format(bond)
+    with open("{}/bonding/mode".format(bond_path)) as fos:
+        content = fos.read()
+        if re.search('balance-rr', content):
+            return "balance_rr"
+        elif re.search('active-backup', content):
+            return "active_backup"
+        elif re.search('balance-xor', content):
+            return "balance_xor"
+        elif re.search('broadcast', content):
+            return "broadcast"
+        elif re.search('802.3ad', content):
+            return "lacp"
+        elif re.search('balance-tlb', content):
+            return "balance_tlb"
+        elif re.search('balance-alb', content):
+            return "balance_alb"
+    return 'others'
+
+
 def check_bond(bond, lldp=None):
     bond_path = "/sys/class/net/{}".format(bond)
     if not os.path.isdir(bond_path):
@@ -239,6 +283,13 @@ def check_bond(bond, lldp=None):
                         return "vlan mismatch"
                 else:
                     vlan = lldp.get_interface_vlan(slave)
+        if get_bond_mode(bond) == "lacp":
+            for slave in content.split():
+                if check_aggregator_id(bond, slave):
+                    return "Aggregator ID mismatch"
+            for slave in content.split():
+                if check_lacp_port_state(slave):
+                    return "LACP port state mismatch"
     return None
 
 
