@@ -311,7 +311,7 @@ def check_bonds(bonds, lldp=None):
 
 def check_nodes(nodes, iperf_client=False):
     cfg = hookenv.config()
-    local_ip = hookenv.unit_private_ip()
+    local_ip = hookenv.network_get("magpie")['ingress-addresses'][0]
     iface_lines = subprocess.check_output(["ip", "route", "show", "to",
                                            "match", local_ip]).decode()
     iface_lines = iface_lines.split('\n')
