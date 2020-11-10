@@ -12,14 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
+import datetime
 import os
 import subprocess
+import math
 import re
 import time
 import json
+import psutil
 from charmhelpers.core import hookenv
 from charmhelpers.core.host import get_nic_mtu, service_start, service_running
 from charmhelpers.fetch import apt_install
+import charmhelpers.contrib.network.ip as ch_ip
+from prometheus_client import Gauge, start_http_server
 
 
 class Lldp():
@@ -84,6 +90,13 @@ class Iperf():
     """
     Install and start a server automatically
     """
+
+    BATCH_CTRL_FILE = '/tmp/batch_hostcheck.ctrl'
+    IPERF_BASE_PORT = 5001
+
+    # Dict of prometheus metrics
+    metrics = {}
+
     def __init__(self):
         self.iperf_out = '/home/ubuntu/iperf_output.' + \
             hookenv.application_name() + '.txt'
@@ -91,10 +104,20 @@ class Iperf():
     def install_iperf(self):
         apt_install("iperf")
 
-    def listen(self):
-        ip = hookenv.network_get('magpie')[
-            'bind-addresses'][0]['addresses'][0]['address']
-        cmd = "iperf -s -m -fm -B " + ip + " | tee " + self.iperf_out + " &"
+    def listen(self, cidr=None, port=None):
+        port = port or self.IPERF_BASE_PORT
+        if cidr:
+            bind_addreess = ch_ip.get_address_in_network(cidr)
+        else:
+            bind_addreess = (
+                hookenv.network_get('magpie')
+                ['bind-addresses'][0]['addresses'][0]['address']
+            )
+        cmd = (
+            "iperf -s -m -fm --port " + str(port) +
+            " -B " + bind_addreess + " | tee " +
+            self.iperf_out + " &"
+        )
         os.system(cmd)
 
     def mtu(self):
@@ -125,8 +148,203 @@ class Iperf():
         for node in nodes:
             msg = "checking iperf on {}".format(node[1])
             hookenv.log(msg)
-            cmd = "iperf -t {} -c {}".format(iperf_duration, node[1])
+            cmd = "iperf -t {} -c {} -P{}".format(iperf_duration, node[1],
+                                                  min(8, self.num_cpus()))
             os.system(cmd)
+
+    def get_increment(self, total_runtime, progression):
+        return datetime.timedelta(
+            minutes=math.ceil(total_runtime / len(progression)))
+
+    def get_plan(self, progression, increment):
+        now = datetime.datetime.now()
+        plan = []
+        for i in enumerate(progression):
+            start_time = now + (i[0] * increment)
+            plan.append((start_time, i[1]))
+        return plan
+
+    def num_cpus(self):
+        '''
+        Compatibility wrapper for calculating the number of CPU's
+        a unit has.
+
+        @returns: int: number of CPU cores detected
+        '''
+        try:
+            return psutil.cpu_count()
+        except AttributeError:
+            return psutil.NUM_CPUS
+
+    def update_plan(self, plan, skip_to, increment):
+        progression = []
+        for (_time, conc) in plan:
+            if conc >= skip_to:
+                progression.append(conc)
+        return self.get_plan(progression, increment)
+
+    def get_concurrency(self, plan):
+        now = datetime.datetime.now()
+        for (_time, conc) in reversed(plan):
+            if _time < now:
+                return conc
+
+    def wipe_batch_ctrl_file(self):
+        with open(self.BATCH_CTRL_FILE, "w") as ctrl_file:
+            ctrl_file.truncate(0)
+
+    def read_batch_ctrl_file(self):
+        with open(self.BATCH_CTRL_FILE, 'r') as ctrl_file:
+            contents = ctrl_file.read()
+        return contents
+
+    def add_iperf_bandwidth_metric(self, src_unit, dst_unit, value, tag):
+        """
+        labels:
+            fio_{read|write}_{iops,bandwidth,latency}
+            rbd_bench_{read|write}_??
+            rados_bench_{read|write}_??
+        """
+        if 'magpie_iperf_bandwidth' not in self.metrics:
+            self.metrics['magpie_iperf_bandwidth'] = Gauge(
+                'magpie_iperf_bandwidth',
+                'magpie iperf bandwidth (bits/s)',
+                ['model', 'src', 'dest', 'tag']
+            )
+        self.metrics['magpie_iperf_bandwidth'].labels(
+            model=hookenv.model_name(),
+            src=src_unit, dest=dst_unit,
+            tag=tag).set(value)
+
+    def add_iperf_concurrency_metric(self, src_unit, dst_unit, value, tag):
+        if 'magpie_iperf_concurrency' not in self.metrics:
+            self.metrics['magpie_iperf_concurrency'] = Gauge(
+                'magpie_iperf_concurrency',
+                'magpie iperf process concurrency',
+                ['model', 'src', 'dest', 'tag']
+            )
+        self.metrics['magpie_iperf_concurrency'].labels(
+            model=hookenv.model_name(),
+            src=src_unit, dest=dst_unit,
+            tag=tag).set(value)
+
+    def process_results(self, results, nodes, concurrency, tag):
+        bandwidth = {ip: 0 for ip in nodes.keys()}
+        src_unit = hookenv.local_unit().replace('/', '_')
+        for result in results:
+            bandwidth[result['dest_ip']] += math.ceil(
+                int(result['bits_per_second']))
+        for ip, node_name in nodes.items():
+            dst_unit = node_name.replace('/', '_')
+            self.add_iperf_bandwidth_metric(
+                src_unit,
+                dst_unit,
+                bandwidth[ip],
+                tag)
+            self.add_iperf_concurrency_metric(
+                src_unit,
+                dst_unit,
+                concurrency,
+                tag)
+
+    def batch_hostcheck(self, nodes, total_runtime, iperf_batch_time=None,
+                        progression=None, tag='default'):
+        iperf_batch_time = iperf_batch_time or 60
+        progression = progression or [4, 8, 16, 24, 32, 40]
+        increment = self.get_increment(total_runtime, progression)
+        plan = self.get_plan(progression, increment)
+        finish_time = datetime.datetime.now() + datetime.timedelta(
+            minutes=total_runtime)
+
+        self.wipe_batch_ctrl_file()
+        action_output = []
+
+        # Prometheus target for scraping of collected FIO metrics
+        start_http_server(8088)
+
+        while datetime.datetime.now() < finish_time:
+
+            async def run(cmd):
+                proc = await asyncio.create_subprocess_shell(
+                    cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE)
+
+                stdout, stderr = await proc.communicate()
+
+                if stdout:
+                    return stdout.decode()
+                if stderr:
+                    print('[stderr]')
+                    print(stderr.decode())
+
+            async def run_iperf(node_name, ip, iperf_batch_time,
+                                concurrency, port='5001',
+                                tag='default'):
+                node_name = node_name.replace('/', '_')
+                cmd = "iperf -t{} -c {} --port {} -P{} --reportstyle c".format(
+                    iperf_batch_time,
+                    ip,
+                    port,
+                    concurrency)
+                hookenv.log(cmd, 'INFO')
+                out = await run(cmd)
+                if out:
+                    out = out.splitlines()[-1]
+                    out = out.rstrip().split(',')
+                    results = {
+                        'timestamp': out[0],
+                        'src_ip': out[1],
+                        'src_port': out[2],
+                        'dest_ip': out[3],
+                        'dest_port': out[4],
+                        'unknown1': out[5],
+                        'time_interval': out[6],
+                        'transferred_bytes': out[7],
+                        'bits_per_second': out[8],
+                    }
+                    hookenv.log(
+                        'Destination: {}:{} ({} MB, {} Mbps)'.format(
+                            out[3], out[4],
+                            int(int(out[7]) / 1024 / 1024),
+                            int(int(out[8]) / 1024 / 1024)),
+                        'INFO'
+                    )
+                    return results
+                return {}
+
+            async def run_iperf_batch(concurrency, nodes,
+                                      iperf_batch_time,
+                                      tag='default'):
+                results = await asyncio.gather(
+                    *[run_iperf(node_name, ip, iperf_batch_time,
+                                concurrency, tag=tag)
+                      for ip, node_name, in nodes.items()])
+                self.process_results(results, nodes, concurrency, tag)
+                return results
+
+            contents = self.read_batch_ctrl_file()
+            if contents:
+                try:
+                    plan = self.update_plan(plan, int(contents), increment)
+                    self.wipe_batch_ctrl_file()
+                except ValueError:
+                    pass
+            concurrency = self.get_concurrency(plan)
+            hookenv.status_set(
+                'active',
+                'Concurrency: {} Nodes: {}'.format(
+                    concurrency,
+                    ', '.join([i[0] for i in nodes])))
+            loop = asyncio.get_event_loop()
+            results = loop.run_until_complete(
+                run_iperf_batch(
+                    concurrency,
+                    nodes,
+                    iperf_batch_time,
+                    tag=tag))
+            action_output.append(results)
+        return action_output
 
 
 def safe_status(workload, status):
@@ -405,12 +623,14 @@ def check_nodes(nodes, iperf_client=False):
     cfg_check_local_hostname = cfg.get('check_local_hostname')
     if cfg_check_local_hostname:
         no_hostname = check_local_hostname()
+        local_hostname = subprocess.check_output(
+            'hostname', shell=True).decode('utf-8').rstrip()
         if no_hostname[0] == '':
-            no_hostname = ', local hostname ok'
+            no_hostname = ', local hostname ok ({})'.format(local_hostname)
             hookenv.log('Local hostname lookup OK: {}'.format(
                 str(no_hostname)), 'INFO')
         else:
-            no_hostname = ', local hostname failed'
+            no_hostname = ', local hostname failed ({})'.format(local_hostname)
             hookenv.log('Local hostname lookup FAILED: {}'.format(
                 str(no_hostname)), 'ERROR')
 

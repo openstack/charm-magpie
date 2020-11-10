@@ -127,3 +127,11 @@ def check_all_node(magpie):
     '''
     nodes = magpie.get_nodes()
     _set_states(check_nodes(nodes))
+
+
+@when('prometheus-target.available')
+def advertise_metric_port(target):
+    '''
+    Advertise prometheus metric port used during action execution
+    '''
+    target.configure(port="8088")

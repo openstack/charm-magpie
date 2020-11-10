@@ -1,0 +1,43 @@
+listen:
+  description: |
+    Instruct unit to listen
+  properties:
+    network-cidr:
+      type: string
+      description: Network cidr to use for iperf
+    listener-count:
+      type: integer
+      description: Number of listeners to start
+advertise:
+  description: |
+    Advertise addresses
+run-iperf:
+  description: |
+    Run iperf
+  properties:
+    network-cidr:
+      type: string
+      description: Network cidr to use for iperf
+    units:
+      type: string
+      description: Space seperated list of units
+    iperf-batch-time:
+      type: integer
+      default: 10
+      description: |
+        Maps to iperf -t option, time in seconds to transmit traffic
+    concurrency-progression:
+      type: string
+      default: "2 4 8"
+      description: |
+        Space seperated list of concurrencty value for each batch
+    total-run-time:
+      type: integer
+      default: 10
+      description: |
+        Total run time for iperf test in minutes
+    tag:
+      type: string
+      default: default
+      description: |
+        Tag to use when publishing metrics

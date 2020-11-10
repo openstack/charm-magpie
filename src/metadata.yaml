@@ -5,12 +5,15 @@ description: |
         Magpie will check ICMP, DNS, MTU and rx/tx speed between itself and any
         peer units deployed - deploy more than one magpie unit for meaningful results.
 tags: ["testing", "CI"]
+provides:
+  prometheus-target:
+    interface: http
 peers:
   magpie:
     interface: magpie
 series:
-  - trusty 
-  - xenial 
+  - trusty
+  - xenial
   - bionic
   - eoan
   - focal

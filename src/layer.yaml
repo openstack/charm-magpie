@@ -1,2 +1,11 @@
 repo: git@github.com:openstack-charmers/magpie-layer.git
-includes: ['layer:basic', 'interface:magpie', 'layer:leadership']
+includes: [
+    'layer:basic',
+    'interface:magpie',
+    'layer:leadership',
+    'interface:http'
+  ]
+options:
+  basic:
+    use_venv: True
+    include_system_packages: False
