@@ -108,12 +108,12 @@ class Iperf():
     def selfcheck(self):
         subprocess.check_output(["iperf", "-c", "localhost", "-t", "1"])
 
-    def hostcheck(self, nodes):
+    def hostcheck(self, nodes, iperf_duration):
         # Wait for other nodes to start their servers...
         for node in nodes:
             msg = "checking iperf on {}".format(node[1])
             hookenv.log(msg)
-            cmd = "iperf -t1 -c {}".format(node[1])
+            cmd = "iperf -t {} -c {}".format(iperf_duration, node[1])
             os.system(cmd)
 
 
@@ -367,7 +367,8 @@ def check_nodes(nodes, iperf_client=False):
         elif iperf_client:
             iperf_status = ", iperf leader, mtu: {}".format(iface_mtu)
             iperf = Iperf()
-            iperf.hostcheck(nodes)
+            cfg_iperf_duration = cfg.get('iperf_duration')
+            iperf.hostcheck(nodes, cfg_iperf_duration)
     else:
         iperf_status = ""
     if check_local_mtu(required_mtu, iface_mtu) == 100:

@@ -55,6 +55,13 @@ options:
     default: 0
     description: Minimum transfer speed in mbit/s required to pass the test. 0 disables.
     type: int
+  iperf_duration:
+    default: 1
+    description: |
+      Time in seconds to run iperf to test the transfer speed. Larger
+      value can be set to mitigate the impact of CPU power saving
+      features especially on faster links such as 50G.
+    type: int
   source:
     default: distro
     type: string
