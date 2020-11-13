@@ -1,7 +1,7 @@
 options:
   check_bonds:
-    default: ''
-    description: Comma separated list of expected bonds
+    default: AUTO
+    description: Comma separated list of expected bonds or AUTO to check all available bonds.
     type: string
   use_lldp:
     default: false

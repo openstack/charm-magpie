@@ -333,7 +333,19 @@ def check_nodes(nodes, iperf_client=False):
         if cfg.get('check_port_description'):
             port_status = "{}, ".format(check_port_description(lldp))
     cfg_check_bonds = cfg.get('check_bonds', lldp)
+    # Attempt to find the bond interfaces and create a comma-delimited
+    # string out of them for use by the check_bonds() call below.
+    all_bonds_path = "/sys/class/net/bonding_masters"
+    if cfg_check_bonds.upper() == "AUTO" and os.path.exists(all_bonds_path):
+        with open(all_bonds_path) as fos:
+            all_bonds = fos.read()
+            if all_bonds:
+                cfg_check_bonds = all_bonds.replace(' ', ',')
+    elif cfg_check_bonds.upper() == "AUTO":
+        hookenv.log('No bond interfaces available.', 'DEBUG')
+        cfg_check_bonds = ""
     bond_status = ""
+    # Perform actual bond checking
     if cfg_check_bonds:
         bond_status = "{}, ".format(check_bonds(cfg_check_bonds, lldp))
     cfg_check_iperf = cfg.get('check_iperf')
