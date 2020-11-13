@@ -1,3 +1,15 @@
-reset: false
-packages:
-  - amulet
+charm_name: magpie
+gate_bundles:
+- bionic
+- focal
+- groovy
+smoke_bundles:
+- focal
+target_deploy_status:
+  magpie:
+    workload-status-message: "icmp ok"
+tests:
+- zaza.openstack.charm_tests.magpie.tests.MagpieTest
+tests_options:
+  force_deploy:
+    - groovy

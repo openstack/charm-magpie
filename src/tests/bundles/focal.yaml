@@ -1,0 +1,5 @@
+series: focal
+applications:
+  magpie:
+    num_units: 3
+    charm: magpie
