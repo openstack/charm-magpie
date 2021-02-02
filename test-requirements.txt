@@ -38,14 +38,10 @@ coverage>=3.6
 git+https://github.com/openstack/charms.openstack.git#egg=charms.openstack
 #
 # Revisit for removal / mock improvement:
+netifaces        # vault
 psycopg2-binary  # vault
 tenacity         # vault
 pbr              # vault
 cryptography     # vault, keystone-saml-mellon
 lxml             # keystone-saml-mellon
 hvac             # vault, barbican-vault
-
-# From wheelhouse
-psutil
-prometheus_client
-netifaces
