@@ -1,0 +1,11 @@
+- project:
+    templates:
+      - charm-unit-jobs
+    check:
+      jobs:
+      - bionic
+      - focal
+      - groovy
+    vars:
+      needs_charm_build: true
+      charm_build_name: magpie
