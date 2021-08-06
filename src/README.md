@@ -92,7 +92,7 @@ This charm also supports the following config values:
 e.g.
 
 ```
-juju set magpie dns_server=8.8.8.8 required_mtu=9000 min_speed=1000
+juju config magpie dns_server=8.8.8.8 required_mtu=9000 min_speed=1000
 ```
 
 ## Network spaces
