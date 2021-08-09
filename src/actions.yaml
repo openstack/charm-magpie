@@ -20,7 +20,7 @@ run-iperf:
       description: Network cidr to use for iperf
     units:
       type: string
-      description: Space seperated list of units
+      description: Space separated list of units
     iperf-batch-time:
       type: integer
       default: 10
@@ -30,7 +30,7 @@ run-iperf:
       type: string
       default: "2 4 8"
       description: |
-        Space seperated list of concurrencty value for each batch
+        Space separated list of concurrency value for each batch
     total-run-time:
       type: integer
       default: 10

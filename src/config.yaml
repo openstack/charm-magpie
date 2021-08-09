@@ -45,7 +45,7 @@ options:
     type: int
   supress_status:
     default: False
-    description: Enable this if you intend to consume this layer - supresses status messages
+    description: Enable this if you intend to consume this layer - suppresses status messages
     type: boolean
   required_mtu:
     default: 0

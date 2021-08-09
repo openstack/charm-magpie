@@ -167,11 +167,11 @@ and does not require any special switch support. The receive load balancing is a
 negotiation.
 
 The most commonly used modes are `active-backup` and `802.3ad` (LACP), and while active-backup
-does not require any thirdparty configuration, it has its own cons - for example, it can't multiply
+does not require any third party configuration, it has its own cons - for example, it can't multiply
 the total bandwidth of the link, while 802.3ad-based bond could utilize all bond members, therefore
 multiplying the bandwidth. However, in order to get a fully working LACP link, an appropriate
 configuration has to be done both on the actor (link initiator) and partner (switch) side. Any
-misconfiguration could lead to the link loss or instability, therefore it's very imporant to have
+misconfiguration could lead to the link loss or instability, therefore it's very important to have
 correct settings applied to the both sides of the link.
 
 A quick overview of the LACP link status could be obtained by reading the
@@ -309,7 +309,7 @@ encoded as a 0.
 this link is definitely enabled and is not expected to be disabled in the absence of administrative
 changes or changes in received protocol information. True is encoded as a 1; False is encoded as a
 0.
-5) Distributing: Bond is sending traffic using this ports encoded. Same as above, but for egress
+5) Distributing: Bond is sending traffic using these ports encoded. Same as above, but for egress
 traffic. True is encoded as a 1; False is encoded as a 0.
 6) Defaulted: Determines, whether the receiving bond is using default (administratively defined)
 parameters, if the information was received in an LACP PDU. Default settings are encoded as a 1,
@@ -424,7 +424,7 @@ details partner lacp pdu:
     port state: 63
 ```
 
-As we could see, one of the links has different port states for both partner and actor, while second
+As we could see, one of the links has different port states for both partner and actor, while the second
 one has 63 for both - meaning, the first one is problematic and we'd need to dive more into this
 problem.
 
@@ -442,14 +442,14 @@ Synchronization: Link out of sync (Port 1) / Link in sync (Port 2)
 (Equal for both ports) Link Expiration: No
 ```
 
-The above output means, that there is two differences between these statuses: LACP Timeout and
+The above output means that there are two differences between these statuses: LACP Timeout and
 Synchronization. That means two things:
 
 1) the Partner side (a switch side in most of the cases) has incorrectly configured LACP timeout
 control. To resolve this, an operator has to either change the LACP rate from the Actor (e.g a
 server) side to "Slow", or adjust the Partner (e.g switch) LACP rate to "Fast".
-2) the Partner side considers this physical link as a part of different link aggregation group. The
-switch config has to be revisited and link aggregation group members needs to be verified again,
+2) the Partner side considers this physical link as a part of a different link aggregation group. The
+switch config has to be revisited and link aggregation group members need to be verified again,
 ensuring there is no extra or wrong links configured as part of the single LAG.
 
 After addressing the above issues, the port state will change to 63, which means "LACP link is fully
