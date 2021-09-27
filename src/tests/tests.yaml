@@ -7,6 +7,7 @@ gate_bundles:
 
 dev_bundles:
 - hirsute
+- impish
 
 smoke_bundles:
 - focal
@@ -20,4 +21,5 @@ tests:
 
 tests_options:
   force_deploy:
-    - hirsute
+    - groovy
+    - impish

@@ -7,6 +7,8 @@
       - focal
       - groovy
       - hirsute
+      - impish:
+          voting: false
     vars:
       needs_charm_build: true
       charm_build_name: magpie
