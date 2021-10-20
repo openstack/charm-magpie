@@ -1,6 +1,6 @@
 # Overview
 
-Magpie is a charm used for testing the networking of a juju provider/substrate.
+Magpie is a charm used for testing the networking of a Juju provider/substrate.
 Simply deploy Magpie charm to at least two units and watch the status messages and
 debug logs.
 
@@ -17,7 +17,7 @@ Note : **MTU and transfer speed are tested with iperf2**
 Status messages will show the unit numbers that have issues - if there are
 no problems, there will not be a verbose status message.
 
-All actions, strings, queries and actions are logged in the juju logs.
+All strings, queries, and actions are logged in the Juju logs.
 
 # MTU Notes
 
