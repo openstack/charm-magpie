@@ -3,11 +3,11 @@ charm_name: magpie
 gate_bundles:
 - bionic
 - focal
-- groovy
-
-dev_bundles:
 - hirsute
 - impish
+
+dev_bundles:
+- jammy
 
 smoke_bundles:
 - focal
@@ -21,5 +21,6 @@ tests:
 
 tests_options:
   force_deploy:
-    - groovy
+    - hirsute
     - impish
+    - jammy

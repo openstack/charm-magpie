@@ -5,9 +5,10 @@
       jobs:
       - bionic
       - focal
-      - groovy
       - hirsute
       - impish:
+          voting: false
+      - jammy:
           voting: false
     vars:
       needs_charm_build: true
