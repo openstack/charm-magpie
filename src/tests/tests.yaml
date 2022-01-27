@@ -1,9 +1,7 @@
 charm_name: magpie
 
 gate_bundles:
-- bionic
 - focal
-- hirsute
 - impish
 
 dev_bundles:
@@ -21,6 +19,5 @@ tests:
 
 tests_options:
   force_deploy:
-    - hirsute
     - impish
     - jammy

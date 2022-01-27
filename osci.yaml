@@ -1,11 +1,10 @@
 - project:
     templates:
-      - charm-yoga-unit-jobs
+      - charm-unit-jobs-py38
+      - charm-unit-jobs-py39
     check:
       jobs:
-      - bionic
       - focal
-      - hirsute
       - impish:
           voting: false
       - jammy:

@@ -12,8 +12,5 @@ peers:
   magpie:
     interface: magpie
 series:
-- bionic
 - focal
-- groovy
-- hirsute
 - impish
