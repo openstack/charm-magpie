@@ -1,5 +1,7 @@
+local_overlay_enabled: False
+
 series: focal
 applications:
   magpie:
     num_units: 3
-    charm: magpie
+    charm: ../../../magpie.charm

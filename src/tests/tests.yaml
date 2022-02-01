@@ -12,7 +12,7 @@ smoke_bundles:
 
 target_deploy_status:
   magpie:
-    workload-status-message: "icmp ok"
+    workload-status-message-prefix: "icmp ok"
 
 tests:
 - zaza.openstack.charm_tests.magpie.tests.MagpieTest
