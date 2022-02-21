@@ -44,6 +44,12 @@ def install():
         hookenv.config().get('source', 'distro'))
     fetch.add_source(source, key)
     fetch.apt_update(fatal=True)
+    # The ``magpie`` charm is used as principle for functional tests with some
+    # subordinate charms.  Install the ``openstack-release`` package when
+    # available to allow the functional test code to determine installed UCA
+    # versions.
+    fetch.apt_install(fetch.filter_installed_packages(['openstack-release']),
+                      fatal=False, quiet=True)
     set_state('charm.installed')
 
 
