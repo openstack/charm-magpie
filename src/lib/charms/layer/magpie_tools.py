@@ -779,7 +779,7 @@ def check_dns(nodes):
                     if unit_id in nofwd:
                         nofwd.remove(unit_id)
                     if ip != forward:
-                        mstr = r'(r\"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$"'
+                        mstr = r'(r\"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")'
                         if not re.match(mstr, forward):
                             forward = "Can not resolve hostname to IP {}"\
                                       .format(repr(forward))
