@@ -114,21 +114,11 @@ class Iperf():
                 ['bind-addresses'][0]['addresses'][0]['address']
             )
         cmd = (
-            "iperf -s -m -fm --port " + str(port) +
+            "iperf -s -fm --port " + str(port) +
             " -B " + bind_addreess + " | tee " +
             self.iperf_out + " &"
         )
         os.system(cmd)
-
-    def mtu(self):
-        with open(self.iperf_out) as f:
-            for line in f.readlines():
-                if "MTU" in line:
-                    match = line
-        try:
-            return match.split('MTU', 4)[1].split(' ')[1]
-        except UnboundLocalError:
-            return "no iperf test results: failed"
 
     def speed(self):
         with open(self.iperf_out) as f:
@@ -353,9 +343,12 @@ def safe_status(workload, status):
         hookenv.status_set(workload, status)
 
 
-def ping(input, ping_time, ping_tries):
-    ping_string = "ping -c {} -w {} {} > /dev/null 2>&1"\
-        .format(ping_tries, ping_time, input)
+def ping(input, ping_time, ping_tries, mtu=None):
+    ping_size = ""
+    if mtu:
+        ping_size = "-M do -s {}".format(str(int(mtu) - 28))
+    ping_string = "ping -c {} -w {} {} {} > /dev/null 2>&1"\
+        .format(ping_tries, ping_time, input, ping_size)
     hookenv.log('Ping command: {}'.format(ping_string), 'DEBUG')
     response = os.system(ping_string)
     if response == 0:
@@ -583,7 +576,13 @@ def check_nodes(nodes, iperf_client=False):
         hookenv.log("Running iperf test", 'INFO')
         if not iperf_client:
             iperf = Iperf()
-            mtu = iperf.mtu()
+
+            no_ping_mtu = check_ping(nodes, mtu=required_mtu or iface_mtu)
+            if not no_ping_mtu:
+                mtu = required_mtu or iface_mtu
+            else:
+                mtu = 'failed'
+
             speed = iperf.speed()
             # Make space for 8 or 12 byte variable overhead (TCP options)
             if "failed" not in mtu:
@@ -694,7 +693,7 @@ def check_nodes(nodes, iperf_client=False):
     return reactive_state
 
 
-def check_ping(nodes):
+def check_ping(nodes, mtu=None):
     cfg = hookenv.config()
     ping_time = cfg.get('ping_timeout')
     ping_tries = cfg.get('ping_tries')
@@ -705,7 +704,7 @@ def check_ping(nodes):
     for node in nodes:
         unit_id = node[0].split('/')[1]
         hookenv.log('Pinging unit_id: ' + str(unit_id), 'INFO')
-        if ping(node[1], ping_time, ping_tries) == 1:
+        if ping(node[1], ping_time, ping_tries, mtu=mtu) == 1:
             hookenv.log('Ping FAILED for unit_id: ' + str(unit_id), 'ERROR')
             if unit_id not in unreachable:
                 unreachable.append(unit_id)
