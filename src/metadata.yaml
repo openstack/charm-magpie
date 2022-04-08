@@ -12,5 +12,7 @@ peers:
   magpie:
     interface: magpie
 series:
+- bionic
 - focal
 - impish
+- jammy

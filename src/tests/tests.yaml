@@ -1,10 +1,9 @@
 charm_name: magpie
 
 gate_bundles:
+- bionic
 - focal
 - impish
-
-dev_bundles:
 - jammy
 
 smoke_bundles:
@@ -16,8 +15,3 @@ target_deploy_status:
 
 tests:
 - zaza.openstack.charm_tests.magpie.tests.MagpieTest
-
-tests_options:
-  force_deploy:
-    - impish
-    - jammy
