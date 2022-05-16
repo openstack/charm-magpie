@@ -49,47 +49,10 @@ juju deploy magpie -n 2
 juju deploy magpie -n 1 --to lxd:1
 ```
 
-This charm also supports the following config values:
+This charm supports several config values for tuning behaviour.
+Please refer to ./src/config.yaml or run `juju config magpie`.
 
-```yaml
-  check_local_hostname:
-    default: true
-    description: Check if local hostname is resolvable
-    type: boolean
-  dns_server:
-    default: ''
-    description: DNS Server to use (default: system default)
-    type: string
-  dns_tries:
-    default: 1
-    description: Number of DNS resolution attempts per query
-    type: int
-  dns_time:
-    default: 3
-    description: Timeout in seconds per DNS query try
-    type: int
-  ping_timeout:
-    default: 2
-    description: Timeout in seconds per ICMP request
-    type: int
-  ping_tries:
-    default: 1
-    description: Number of ICMP packets per ping
-    type: int
-  required_mtu:
-    default: 0
-    description: |
-        Desired MTU for all nodes - block if the unit MTU is different
-        (accounting for encapsulation). 0 disables.
-    type: int
-  min_speed:
-    default: 0
-    description: |
-        Minimum transfer speed in mbits/s required to pass the test.
-        0 disables.
-```
-
-e.g.
+Example of adjusting config:
 
 ```
 juju config magpie dns_server=8.8.8.8 required_mtu=9000 min_speed=1000

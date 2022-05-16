@@ -343,18 +343,49 @@ def safe_status(workload, status):
         hookenv.status_set(workload, status)
 
 
-def ping(input, ping_time, ping_tries, mtu=None):
-    ping_size = ""
+def ping(addr, timeout, count, interval, mtu=None) -> int:
+    """
+    Ping `addr` with provided options.
+
+    Return an integer between 0 and 100,
+    representing the percentage of packet loss.
+
+    :param addr: ip address or hostname to ping
+    :type addr: str
+    :param timeout: timeout in seconds per icmp request
+    :type timeout: Union[str, int, float]
+    :param count: number of packets to send
+    :type count: Union[str, int]
+    :param interval: seconds between sending each packet
+    :type interval: Union[str, int, float]
+    :param mtu: optional packet size to send
+    :type mtu: Union[str, int, None]
+    :returns: an integer between 0 and 100
+    :rtype: int
+    """
+    args = [
+        "ping",
+        "-c", str(count),
+        "-i", str(interval),
+        "-W", str(timeout),
+    ]
     if mtu:
-        ping_size = "-M do -s {}".format(str(int(mtu) - 28))
-    ping_string = "ping -c {} -w {} {} {} > /dev/null 2>&1"\
-        .format(ping_tries, ping_time, input, ping_size)
-    hookenv.log('Ping command: {}'.format(ping_string), 'DEBUG')
-    response = os.system(ping_string)
-    if response == 0:
-        return 0
-    else:
-        return 1
+        args.extend(("-M", "do", "-s", str(int(mtu) - 28)))
+    args.append(addr)
+    hookenv.log('Ping command: {}'.format(" ".join(args)), hookenv.DEBUG)
+    proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    match = re.search(
+        r"(\d+)(?:\.\d+)?%\s+packet\s+loss",
+        proc.stdout.decode()
+    )
+    if match:
+        return int(match.group(1))
+    hookenv.log(
+        f"pinging {addr} failed with output: '{proc.stdout}'",
+        hookenv.DEBUG
+    )
+    return 100
 
 
 def check_local_hostname():
@@ -694,24 +725,37 @@ def check_nodes(nodes, iperf_client=False):
 
 
 def check_ping(nodes, mtu=None):
+    """
+    Ping nodes and return list of unreachable unit ids.
+
+    :param mtu: optional packet size to send
+    :type mtu: Union[str, int, None]
+    :returns: a list of unreachable unit ids.
+    :rtype: List[str]
+    """
     cfg = hookenv.config()
-    ping_time = cfg.get('ping_timeout')
+    ping_timeout = cfg.get('ping_timeout')
     ping_tries = cfg.get('ping_tries')
-    try:
-        unreachable
-    except NameError:
-        unreachable = []
+    ping_interval = cfg.get('ping_interval')
+    unreachable = []
     for node in nodes:
         unit_id = node[0].split('/')[1]
         hookenv.log('Pinging unit_id: ' + str(unit_id), 'INFO')
-        if ping(node[1], ping_time, ping_tries, mtu=mtu) == 1:
-            hookenv.log('Ping FAILED for unit_id: ' + str(unit_id), 'ERROR')
-            if unit_id not in unreachable:
-                unreachable.append(unit_id)
+        packet_loss = ping(node[1], ping_timeout, ping_tries,
+                           ping_interval, mtu=mtu)
+        if packet_loss > 0:
+            hookenv.log(
+                f'Ping FAILED for unit_id: {unit_id}.  '
+                f'{packet_loss}% packet loss',
+                hookenv.ERROR
+            )
+            unreachable.append(f"{unit_id}: {packet_loss}% packet loss")
         else:
-            hookenv.log('Ping OK for unit_id: ' + str(unit_id), 'INFO')
-            if unit_id in unreachable:
-                unreachable.remove(unit_id)
+            hookenv.log(
+                f'Ping OK for unit_id: {unit_id}.  '
+                f'{packet_loss}% packet loss',
+                hookenv.INFO
+            )
 
     return unreachable
 

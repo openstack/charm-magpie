@@ -25,7 +25,7 @@ options:
     type: boolean
   dns_server:
     default: ''
-    description: Use unit default DNS server 
+    description: Use unit default DNS server
     type: string
   dns_tries:
     default: 1
@@ -40,9 +40,13 @@ options:
     description: Timeout in seconds per ICMP request
     type: int
   ping_tries:
-    default: 1
+    default: 20
     description: Number of ICMP packets per ping
     type: int
+  ping_interval:
+    default: 0.05
+    description: Number of seconds to wait between sending each packet
+    type: float
   supress_status:
     default: False
     description: Enable this if you intend to consume this layer - suppresses status messages
