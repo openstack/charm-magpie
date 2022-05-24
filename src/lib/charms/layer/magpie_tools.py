@@ -585,7 +585,7 @@ def check_nodes(nodes, iperf_client=False):
 
             speed = iperf.speed()
             # Make space for 8 or 12 byte variable overhead (TCP options)
-            if "failed" not in mtu:
+            if "failed" not in str(mtu):
                 if 0 <= (int(iface_mtu) - int(mtu)) <= 12:
                     iperf_status = ", net mtu ok: {}".format(iface_mtu)
                 else:
