@@ -382,13 +382,42 @@ def check_local_mtu(required_mtu, iface_mtu):
         return 200
 
 
-def check_min_speed(min_speed, iperf_speed):
-    if min_speed == 0:
-        return 0
-    elif min_speed <= iperf_speed:
-        return 100
-    elif min_speed > iperf_speed:
-        return 200
+def status_for_speed_check(min_speed, speed, link_speed):
+    """
+    Generate and return a portion of the status line for the iperf speed test.
+
+    :param min_speed: raw value of min-speed from charm config
+    :type min_speed: str
+    :param speed: speed in mbit/s from iperf
+    :type speed: float
+    :param link_speed: link speed in mbit/s
+    :type link_speed: int
+    """
+    if not re.match(r'^\d+%?$', min_speed):
+        return ', invalid min_speed: {!r}'.format(min_speed)
+
+    if int(min_speed.rstrip('%')) == 0:
+        return ', {} mbit/s'.format(speed)
+
+    if '%' in min_speed:
+        # virtual link with no defined speed
+        if link_speed < 0:
+            hookenv.log(
+                'link speed negative, so unable to '
+                'calculate value for min_speed percentage',
+                'INFO'
+            )
+            return ', speed failed: link speed undefined'
+
+        # convert percentage to integer mbit/s
+        min_speed = int(min_speed.rstrip('%')) * link_speed // 100
+    else:
+        min_speed = int(min_speed)
+
+    if min_speed <= speed:
+        return ', speed ok: {} mbit/s'.format(speed)
+    else:
+        return ', speed failed: {} < {} mbit/s'.format(speed, min_speed)
 
 
 def check_port_description(lldp):
@@ -532,6 +561,11 @@ def check_bonds(bonds, lldp=None):
         return "bonds ok"
 
 
+def get_link_speed(iface):
+    with open('/sys/class/net/{}/speed'.format(iface)) as f:
+        return int(f.read())
+
+
 def check_nodes(nodes, iperf_client=False):
     cfg = hookenv.config()
     local_ip = hookenv.network_get("magpie")['ingress-addresses'][0]
@@ -543,6 +577,7 @@ def check_nodes(nodes, iperf_client=False):
             break
     primary_iface = str(line).split('dev')[1].split(' ')[1]
     iface_mtu = get_nic_mtu(primary_iface)
+    link_speed = get_link_speed(primary_iface)
     required_mtu = cfg.get('required_mtu')
     min_speed = cfg.get('min_speed')
     msg = "MTU for iface: {} is {}".format(primary_iface, iface_mtu)
@@ -594,15 +629,8 @@ def check_nodes(nodes, iperf_client=False):
             else:
                 iperf_status = ", network mtu check failed"
             if "failed" not in speed:
-                if check_min_speed(min_speed, float(speed)) == 0:
-                    iperf_status = iperf_status + ", {} mbit/s".format(speed)
-                if check_min_speed(min_speed, float(speed)) == 100:
-                    iperf_status = iperf_status + ", speed ok: \
-                            {} mbit/s".format(speed)
-                if check_min_speed(min_speed, float(speed)) == 200:
-                    iperf_status = iperf_status + ", speed \
-                            failed: {} < {} mbit/s\
-                            ".format(speed, str(min_speed))
+                iperf_status += status_for_speed_check(
+                    min_speed, float(speed), link_speed)
             else:
                 iperf_status = iperf_status + ", iperf speed check failed"
         elif iperf_client:

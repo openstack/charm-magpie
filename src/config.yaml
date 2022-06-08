@@ -52,9 +52,15 @@ options:
     description: Desired MTU for all nodes - block if the unit MTU is different (accounting for encapsulation). 0 disables.
     type: int
   min_speed:
-    default: 0
-    description: Minimum transfer speed in mbit/s required to pass the test. 0 disables.
-    type: int
+    default: '0'
+    description: |
+      Minimum transfer speed in integer mbit/s required to pass the test. 0 disables.
+
+      This can also be set to an integer percentage value (eg. '80%'),
+      which will be interpreted as a percentage of the link speed.
+      Useful in mixed link speed environments.
+      Likewise, '0%' disables.
+    type: string
   iperf_duration:
     default: 1
     description: |
