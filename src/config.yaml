@@ -35,6 +35,10 @@ options:
     default: 3
     description: Timeout in seconds per DNS query try
     type: int
+  lacp_passive_mode:
+    default: false
+    description: Set to true if switches are in LACP passive mode.
+    type: boolean
   ping_timeout:
     default: 2
     description: Timeout in seconds per ICMP request

@@ -517,12 +517,24 @@ def check_aggregator_id(bond_iface, slave_iface):
 
 
 def check_lacp_port_state(iface):
+    cfg = hookenv.config()
     iface_dir = "/sys/class/net/{}/bonding_slave".format(iface)
     with open("{}/ad_actor_oper_port_state".format(iface_dir)) as fos:
         actor_port_state = fos.read()
     with open("{}/ad_partner_oper_port_state".format(iface_dir)) as fos:
         partner_port_state = fos.read()
-    if actor_port_state != partner_port_state:
+
+    if (
+        actor_port_state != partner_port_state
+        # check if this is an acceptable mismatch in the LACP activity mode
+        and not (
+            cfg.get('lacp_passive_mode')
+            # and the only difference is the LACP activity bit
+            # (1111_1110 bitmask to ignore LACP activity bit in comparison)
+            and (int(actor_port_state) & 254) ==
+                (int(partner_port_state) & 254)
+        )
+    ):
         return "lacp_port_state_mismatch"
     return None
 
