@@ -14,5 +14,5 @@ peers:
 series:
 - bionic
 - focal
-- impish
 - jammy
+- kinetic

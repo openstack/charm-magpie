@@ -1,6 +1,6 @@
 local_overlay_enabled: False
 
-series: impish
+series: kinetic
 applications:
   magpie:
     num_units: 3
