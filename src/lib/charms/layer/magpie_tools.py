@@ -605,8 +605,14 @@ def check_bonds(bonds, lldp=None):
 
 
 def get_link_speed(iface):
-    with open('/sys/class/net/{}/speed'.format(iface)) as f:
-        return int(f.read())
+    try:
+        with open('/sys/class/net/{}/speed'.format(iface)) as f:
+            return int(f.read())
+    except OSError as e:
+        hookenv.log('Unable to determine link speed for {}: {}'
+                    .format(iface, str(e)),
+                    hookenv.WARNING)
+        return -1
 
 
 def check_nodes(nodes, iperf_client=False):

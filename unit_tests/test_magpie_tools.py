@@ -141,3 +141,20 @@ class TestMagpieTools(unit_tests.test_utils.CharmTestCase):
         self.assertEqual(
             magpie_tools.check_lacp_port_state('test'),
             'lacp_port_state_mismatch')
+
+    def test_get_link_speed(self):
+        # Normal operation
+        with unit_tests.test_utils.patch_open() as (mock_open, mock_file):
+            mock_file.read.return_value = b'1000'
+            self.assertEqual(
+                1000,
+                magpie_tools.get_link_speed('eth0'),
+            )
+            mock_open.assert_called_once_with('/sys/class/net/eth0/speed')
+        # Invalid argument
+        with unit_tests.test_utils.patch_open() as (mock_open, mock_file):
+            mock_open.side_effect = OSError()
+            self.assertEqual(
+                -1,
+                magpie_tools.get_link_speed('eth0'),
+            )
