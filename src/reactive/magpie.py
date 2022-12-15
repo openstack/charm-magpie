@@ -50,6 +50,8 @@ def install():
     # versions.
     fetch.apt_install(fetch.filter_installed_packages(['openstack-release']),
                       fatal=False, quiet=True)
+    fetch.apt_install(fetch.filter_installed_packages(['iperf']),
+                      fatal=True, quiet=True)
     set_state('charm.installed')
 
 
@@ -61,15 +63,6 @@ def install_lldp_pkg():
         lldp.install()
         lldp.enable()
         set_state('lldp.installed')
-
-
-@when('charm.installed')
-@when_not('iperf.installed')
-def install_iperf_pkg():
-    if hookenv.config().get('check_iperf'):
-        iperf = Iperf()
-        iperf.install_iperf()
-        set_state('iperf.installed')
 
 
 @when_not('magpie.joined')

@@ -101,9 +101,6 @@ class Iperf():
         self.iperf_out = '/home/ubuntu/iperf_output.' + \
             hookenv.application_name() + '.txt'
 
-    def install_iperf(self):
-        apt_install("iperf")
-
     def listen(self, cidr=None, port=None):
         port = port or self.IPERF_BASE_PORT
         if cidr:
@@ -144,7 +141,7 @@ class Iperf():
 
     def get_increment(self, total_runtime, progression):
         return datetime.timedelta(
-            minutes=math.ceil(total_runtime / len(progression)))
+            seconds=math.ceil(total_runtime / len(progression)))
 
     def get_plan(self, progression, increment):
         now = datetime.datetime.now()
@@ -244,7 +241,7 @@ class Iperf():
         increment = self.get_increment(total_runtime, progression)
         plan = self.get_plan(progression, increment)
         finish_time = datetime.datetime.now() + datetime.timedelta(
-            minutes=total_runtime)
+            seconds=total_runtime)
 
         self.wipe_batch_ctrl_file()
         action_output = []
