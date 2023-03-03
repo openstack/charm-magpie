@@ -1,13 +1,12 @@
 charm_name: magpie
 
 gate_bundles:
-- bionic
 - focal
 - jammy
 - kinetic
 
 smoke_bundles:
-- focal
+- jammy
 
 target_deploy_status:
   magpie:
@@ -15,7 +14,3 @@ target_deploy_status:
 
 tests:
 - zaza.openstack.charm_tests.magpie.tests.MagpieTest
-
-tests_options:
-  force_deploy:
-    - kinetic

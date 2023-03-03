@@ -5,7 +5,6 @@
       - charm-unit-jobs-py310
     check:
       jobs:
-      - bionic
       - focal
       - jammy
       - kinetic
@@ -13,3 +12,4 @@
       needs_charm_build: true
       charm_build_name: magpie
       build_type: charmcraft
+      charmcraft_channel: 2.2/stable

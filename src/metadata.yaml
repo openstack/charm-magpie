@@ -12,7 +12,6 @@ peers:
   magpie:
     interface: magpie
 series:
-- bionic
 - focal
 - jammy
 - kinetic
