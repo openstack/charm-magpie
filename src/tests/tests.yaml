@@ -4,6 +4,7 @@ gate_bundles:
 - focal
 - jammy
 - kinetic
+- lunar
 
 smoke_bundles:
 - jammy
@@ -14,3 +15,7 @@ target_deploy_status:
 
 tests:
 - zaza.openstack.charm_tests.magpie.tests.MagpieTest
+
+tests_options:
+  force_deploy:
+    - lunar
