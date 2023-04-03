@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import io
 import mock
@@ -20,6 +21,20 @@ def patch_open():
 
     with mock.patch('builtins.open', stub_open):
         yield mock_open, mock_file
+
+
+def async_test(f):
+    """
+    A decorator to test async functions within a synchronous environment.
+
+    see https://stackoverflow.com/questions/23033939/
+    """
+    def wrapper(*args, **kwargs):
+        coro = asyncio.coroutine(f)
+        future = coro(*args, **kwargs)
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(future)
+    return wrapper
 
 
 class CharmTestCase(unittest.TestCase):

@@ -4,7 +4,7 @@ from unittest.mock import (
 )
 
 import lib.charms.layer.magpie_tools as magpie_tools
-import unit_tests.test_utils
+from unit_tests.test_utils import patch_open, CharmTestCase, async_test
 
 
 LACP_STATE_SLOW_ACTIVE = '61'
@@ -27,7 +27,7 @@ def mocked_open_lacp_port_state(actor, partner):
     return the_actual_mock
 
 
-class TestMagpieTools(unit_tests.test_utils.CharmTestCase):
+class TestMagpieTools(CharmTestCase):
 
     def setUp(self):
         super(TestMagpieTools, self).setUp()
@@ -144,7 +144,7 @@ class TestMagpieTools(unit_tests.test_utils.CharmTestCase):
 
     def test_get_link_speed(self):
         # Normal operation
-        with unit_tests.test_utils.patch_open() as (mock_open, mock_file):
+        with patch_open() as (mock_open, mock_file):
             mock_file.read.return_value = b'1000'
             self.assertEqual(
                 1000,
@@ -152,9 +152,43 @@ class TestMagpieTools(unit_tests.test_utils.CharmTestCase):
             )
             mock_open.assert_called_once_with('/sys/class/net/eth0/speed')
         # Invalid argument
-        with unit_tests.test_utils.patch_open() as (mock_open, mock_file):
+        with patch_open() as (mock_open, mock_file):
             mock_open.side_effect = OSError()
             self.assertEqual(
                 -1,
                 magpie_tools.get_link_speed('eth0'),
             )
+
+    @async_test
+    @patch('lib.charms.layer.magpie_tools.run')
+    async def test_run_iperf(self, mock_run):
+
+        async def mocked_run(cmd):
+            return """
+19700101000000,192.168.2.2,60266,192.168.2.1,5001,2,0.0-10.1,95158332,75301087
+19700101000000,192.168.2.2,60268,192.168.2.1,5001,1,0.0-10.1,61742908,27989222
+"""
+
+        mock_run.side_effect = mocked_run
+        result = await magpie_tools.run_iperf(
+            "mynode", "192.168.2.2", "10", "2"
+        )
+
+        mock_run.assert_called_once_with(
+            "iperf -t10 -c 192.168.2.2 --port 5001 -P2 --reportstyle c"
+        )
+        self.assertEqual(result, {
+            "GBytes_transferred": 0.146,
+            "Mbits_per_second": 98,
+            "bits_per_second": 103290309,
+            "concurrency": "2",
+            "dest_ip": "192.168.2.1",
+            "dest_node": "mynode",
+            "dest_port": "5001",
+            "session": [2, 1],
+            "src_ip": "192.168.2.2",
+            "src_port": [60266, 60268],
+            "time_interval": "0.0-10.1",
+            "timestamp": "19700101000000",
+            "transferred_bytes": 156901240,
+        })

@@ -86,6 +86,99 @@ class Lldp():
             return None
 
 
+async def run(cmd):
+    proc = await asyncio.create_subprocess_shell(
+        cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE)
+
+    stdout, stderr = await proc.communicate()
+
+    if stdout:
+        return stdout.decode()
+    if stderr:
+        print('[stderr]')
+        print(stderr.decode())
+
+
+async def run_iperf(node_name, ip, iperf_batch_time, concurrency):
+    """
+    this function will perform an iperf command
+    The following is an example of the output
+    $ iperf -c 192.168.2.1 -t 10 --port 5001 -P 2 --reportstyle c
+    19700101000000,192.168.2.2,60266,192.168.2.1,5001,2,0.0-10.1,95158332,75301087
+    19700101000000,192.168.2.2,60268,192.168.2.1,5001,1,0.0-10.1,161742908,127989222
+
+    First field: timestamp of the iperf run
+        As of right now with iperf 2.1.7 (Jammy), the timestamp
+        is always outputting 19700101000000
+    Second field: source IP address
+    Third field: source port
+    Fourth field: destination address
+    Fifth field: destination port
+    Sixth field: Session number when in parallel, iperf doesn't
+        seem to reorder the output by the session number
+    Seventh field: duration of test
+    Eighth field: transferred bytes
+    Ninth field: average speed in bits per second
+    """
+    node_name = node_name.replace('/', '_')
+    cmd = "iperf -t{} -c {} --port 5001 -P{} --reportstyle c".format(
+        iperf_batch_time,
+        ip,
+        concurrency)
+    hookenv.log(cmd, 'INFO')
+    out = await run(cmd)
+    if out:
+        results = {'src_port': [],
+                   'dest_port': '',
+                   'dest_node': node_name,
+                   'session': [],
+                   'transferred_bytes': 0,
+                   'bits_per_second': 0,
+                   }
+        for line in out.split():
+            timestamp, src_ip, src_port, dest_ip, dest_port, \
+                session, time_interval, xferred_bytes, bits_per_s \
+                = line.split(',')
+
+            # The following values will be identical on each line,
+            # so only set the fields once.
+            if not results.get('timestamp'):
+                results['timestamp'] = timestamp
+                results['src_ip'] = src_ip
+                results['dest_ip'] = dest_ip
+                results['dest_port'] = dest_port
+                results['time_interval'] = time_interval
+                results['concurrency'] = concurrency
+
+            # for now magpie only use one iperf server as
+            # destination, it is not useful to record multiple
+            # time the destination port since it is identical
+            results['src_port'].append(int(src_port))
+            results['session'].append(int(session))
+            results['transferred_bytes'] += int(xferred_bytes)
+            results['bits_per_second'] += int(bits_per_s)
+
+        results['GBytes_transferred'] = round(
+            float(results['transferred_bytes'] / 1024**3),
+            3,
+        )
+        results['Mbits_per_second'] = int(
+            results['bits_per_second'] / 1024**2
+        )
+        hookenv.log(
+            f"Source: {results['src_ip']}, "
+            f"Destination: {results['dest_ip']} "
+            f"({results['dest_node']}) : "
+            f"{results['GBytes_transferred']} GB, "
+            f"{results['Mbits_per_second']} Mbps",
+            'INFO'
+        )
+        return results
+    return {}
+
+
 class Iperf():
     """
     Install and start a server automatically
@@ -251,65 +344,6 @@ class Iperf():
 
         while datetime.datetime.now() < finish_time:
 
-            async def run(cmd):
-                proc = await asyncio.create_subprocess_shell(
-                    cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE)
-
-                stdout, stderr = await proc.communicate()
-
-                if stdout:
-                    return stdout.decode()
-                if stderr:
-                    print('[stderr]')
-                    print(stderr.decode())
-
-            async def run_iperf(node_name, ip, iperf_batch_time,
-                                concurrency, port='5001',
-                                tag='default'):
-                node_name = node_name.replace('/', '_')
-                cmd = "iperf -t{} -c {} --port {} -P{} --reportstyle c".format(
-                    iperf_batch_time,
-                    ip,
-                    port,
-                    concurrency)
-                hookenv.log(cmd, 'INFO')
-                out = await run(cmd)
-                if out:
-                    out = out.splitlines()[-1]
-                    out = out.rstrip().split(',')
-                    results = {
-                        'timestamp': out[0],
-                        'src_ip': out[1],
-                        'src_port': out[2],
-                        'dest_ip': out[3],
-                        'dest_port': out[4],
-                        'unknown1': out[5],
-                        'time_interval': out[6],
-                        'transferred_bytes': out[7],
-                        'bits_per_second': out[8],
-                    }
-                    hookenv.log(
-                        'Destination: {}:{} ({} MB, {} Mbps)'.format(
-                            out[3], out[4],
-                            int(int(out[7]) / 1024 / 1024),
-                            int(int(out[8]) / 1024 / 1024)),
-                        'INFO'
-                    )
-                    return results
-                return {}
-
-            async def run_iperf_batch(concurrency, nodes,
-                                      iperf_batch_time,
-                                      tag='default'):
-                results = await asyncio.gather(
-                    *[run_iperf(node_name, ip, iperf_batch_time,
-                                concurrency, tag=tag)
-                      for ip, node_name, in nodes.items()])
-                self.process_results(results, nodes, concurrency, tag)
-                return results
-
             contents = self.read_batch_ctrl_file()
             if contents:
                 try:
@@ -324,12 +358,21 @@ class Iperf():
                     concurrency,
                     ', '.join([i[0] for i in nodes])))
             loop = asyncio.get_event_loop()
+
             results = loop.run_until_complete(
-                run_iperf_batch(
-                    concurrency,
-                    nodes,
-                    iperf_batch_time,
-                    tag=tag))
+                asyncio.gather(
+                    *[
+                        run_iperf(
+                            node_name,
+                            ip,
+                            iperf_batch_time,
+                            concurrency,
+                        )
+                        for ip, node_name, in nodes.items()
+                    ]
+                )
+            )
+            self.process_results(results, nodes, concurrency, tag)
             action_output.append(results)
         return action_output
 

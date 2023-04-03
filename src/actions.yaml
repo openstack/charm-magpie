@@ -27,7 +27,7 @@ run-iperf:
       description: |
         Maps to iperf -t option, time in seconds to transmit traffic
     concurrency-progression:
-      type: string
+      type: [integer, string]
       default: "2 4 8"
       description: |
         Space separated list of concurrency value for each batch

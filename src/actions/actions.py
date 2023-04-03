@@ -62,7 +62,9 @@ def run_iperf(*args):
         nodes,
         action_config.get('total-run-time'),
         action_config.get('iperf-batch-time'),
-        [int(i) for i in action_config.get('concurrency-progression').split()],
+        [int(i) for i in str(
+            action_config.get('concurrency-progression')
+        ).split()],
         tag=action_config.get('tag'))
     hookenv.action_set({
         "output": json.dumps(results)})
