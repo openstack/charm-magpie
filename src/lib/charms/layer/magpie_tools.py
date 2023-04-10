@@ -26,6 +26,7 @@ from charmhelpers.core.host import get_nic_mtu, service_start, service_running
 from charmhelpers.fetch import apt_install
 import charmhelpers.contrib.network.ip as ch_ip
 from prometheus_client import Gauge, start_http_server
+import netifaces
 
 
 class Lldp():
@@ -167,6 +168,15 @@ async def run_iperf(node_name, ip, iperf_batch_time, concurrency):
         results['Mbits_per_second'] = int(
             results['bits_per_second'] / 1024**2
         )
+
+        # retrieve supplementary informations not provided by iperf
+        interface = ch_ip.get_iface_from_addr(results['src_ip'])
+        src_mac = get_iface_mac(interface)
+        dest_mac = get_dest_mac(interface, results['dest_ip'])
+        results['src_interface'] = interface
+        results['src_mac'] = src_mac
+        results['dest_mac'] = dest_mac
+
         hookenv.log(
             f"Source: {results['src_ip']}, "
             f"Destination: {results['dest_ip']} "
@@ -653,6 +663,43 @@ def get_link_speed(iface):
                     .format(iface, str(e)),
                     hookenv.WARNING)
         return -1
+
+
+def get_iface_mac(iface):
+    if iface in netifaces.interfaces():
+        addr = netifaces.ifaddresses(iface)
+        mac = addr[netifaces.AF_LINK][0]['addr']
+        return mac
+    else:
+        hookenv.log('Unable to retrieve MAC from interface {}'
+                    .format(iface), hookenv.WARNING)
+        return ""
+
+
+def get_dest_mac(iface, address):
+    args = [
+        "ip",
+        "-j",
+        "neigh",
+        "show",
+        "dev",
+        iface,
+        "to",
+        address,
+    ]
+    iproute = subprocess.run(
+        args,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    output = json.loads(iproute.stdout.decode())
+
+    # if there is no matched address, iproute returns an empty list
+    if output:
+        mac_addr = output[0]['lladdr']
+        return mac_addr
+    else:
+        return ""
 
 
 def check_nodes(nodes, iperf_client=False):

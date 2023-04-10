@@ -1,11 +1,12 @@
 from unittest.mock import (
     patch,
     mock_open,
+    MagicMock,
 )
 
 import lib.charms.layer.magpie_tools as magpie_tools
 from unit_tests.test_utils import patch_open, CharmTestCase, async_test
-
+import netifaces
 
 LACP_STATE_SLOW_ACTIVE = '61'
 LACP_STATE_FAST_ACTIVE = '63'
@@ -33,7 +34,8 @@ class TestMagpieTools(CharmTestCase):
         super(TestMagpieTools, self).setUp()
         self.obj = self.tools = magpie_tools
         self.patches = [
-            'hookenv']
+            'hookenv',
+        ]
         self.patch_all()
 
     def test_safe_status(self):
@@ -160,7 +162,19 @@ class TestMagpieTools(CharmTestCase):
             )
 
     @async_test
-    @patch('lib.charms.layer.magpie_tools.run')
+    @patch(
+        "lib.charms.layer.magpie_tools.get_iface_mac",
+        lambda _: "de:ad:be:ef:01:01"
+    )
+    @patch(
+        "lib.charms.layer.magpie_tools.get_dest_mac",
+        lambda _, __: "de:ad:be:ef:02:02"
+    )
+    @patch(
+        "lib.charms.layer.magpie_tools.ch_ip.get_iface_from_addr",
+        lambda _: "de:ad:be:ef:03:03"
+    )
+    @patch("lib.charms.layer.magpie_tools.run")
     async def test_run_iperf(self, mock_run):
 
         async def mocked_run(cmd):
@@ -191,4 +205,50 @@ class TestMagpieTools(CharmTestCase):
             "time_interval": "0.0-10.1",
             "timestamp": "19700101000000",
             "transferred_bytes": 156901240,
+            "src_mac": "de:ad:be:ef:01:01",
+            "dest_mac": "de:ad:be:ef:02:02",
+            "src_interface": "de:ad:be:ef:03:03",
         })
+
+    @patch('netifaces.AF_LINK', 17)
+    @patch.object(netifaces, 'ifaddresses')
+    @patch.object(netifaces, 'interfaces')
+    def test_get_iface_mac(self, mock_interfaces, mock_addresses):
+        mock_interfaces.return_value = [
+            'lo',
+            'enp0s31f6',
+            'eth0',
+            'bond0',
+            'br0'
+        ]
+        mock_addresses.return_value = {
+            17: [{'addr': 'c8:5b:76:80:86:01'}],
+            2: [{'addr': '192.168.123.45', 'netmask': '255.255.255.0'}],
+        }
+
+        # with interface listed by netifaces
+        self.assertEqual(
+            magpie_tools.get_iface_mac('bond0'),
+            'c8:5b:76:80:86:01',
+        )
+        # with unknown interface
+        self.assertEqual(
+            '',
+            magpie_tools.get_iface_mac('wronginterface0')
+        )
+
+    @patch('subprocess.PIPE', None)
+    @patch('subprocess.run')
+    def test_get_dest_mac(self, mock_subprocess):
+        mock_stdout = MagicMock()
+        mock_stdout.configure_mock(
+            **{
+                'stdout.decode.return_value': '[{"dst":"192.168.12.1",'
+                '"lladdr":"dc:fb:02:d1:28:18","state":["REACHABLE"]}]'
+            }
+        )
+        mock_subprocess.return_value = mock_stdout
+        self.assertEqual(
+            magpie_tools.get_dest_mac("eth0", "192.168.12.1"),
+            'dc:fb:02:d1:28:18',
+        )
