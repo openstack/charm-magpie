@@ -37,6 +37,7 @@ class TestMagpieTools(CharmTestCase):
             'hookenv',
         ]
         self.patch_all()
+        self.maxDiff = None
 
     def test_safe_status(self):
         self.hookenv.config.return_value = {
@@ -174,6 +175,10 @@ class TestMagpieTools(CharmTestCase):
         "lib.charms.layer.magpie_tools.ch_ip.get_iface_from_addr",
         lambda _: "de:ad:be:ef:03:03"
     )
+    @patch(
+        "lib.charms.layer.magpie_tools.get_src_ip_from_dest",
+        lambda _: "192.168.2.2"
+    )
     @patch("lib.charms.layer.magpie_tools.run")
     async def test_run_iperf(self, mock_run):
 
@@ -185,11 +190,11 @@ class TestMagpieTools(CharmTestCase):
 
         mock_run.side_effect = mocked_run
         result = await magpie_tools.run_iperf(
-            "mynode", "192.168.2.2", "10", "2"
+            "mynode", "192.168.2.1", "10", "2"
         )
 
         mock_run.assert_called_once_with(
-            "iperf -t10 -c 192.168.2.2 --port 5001 -P2 --reportstyle c"
+            "iperf -t10 -c 192.168.2.1 --port 5001 -P2 --reportstyle c"
         )
         self.assertEqual(result, {
             "GBytes_transferred": 0.146,
@@ -251,4 +256,21 @@ class TestMagpieTools(CharmTestCase):
         self.assertEqual(
             magpie_tools.get_dest_mac("eth0", "192.168.12.1"),
             'dc:fb:02:d1:28:18',
+        )
+
+    @patch('subprocess.PIPE', None)
+    @patch('subprocess.run')
+    def test_get_src_ip_from_dest(self, mock_subprocess):
+        mock_stdout = MagicMock()
+        mock_stdout.configure_mock(
+            **{
+                'stdout.decode.return_value': '[{"dst":"192.168.12.1",'
+                '"dev":"enp5s0","prefsrc":"192.168.12.15","flags":[],'
+                '"uid":1000,"cache":[]}]'
+            }
+        )
+        mock_subprocess.return_value = mock_stdout
+        self.assertEqual(
+            magpie_tools.get_src_ip_from_dest("192.168.12.1"),
+            '192.168.12.15',
         )

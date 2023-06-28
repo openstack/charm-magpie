@@ -130,36 +130,49 @@ async def run_iperf(node_name, ip, iperf_batch_time, concurrency):
         concurrency)
     hookenv.log(cmd, 'INFO')
     out = await run(cmd)
+
+    results = {'src_port': [],
+               'dest_port': '',
+               'dest_node': node_name,
+               'session': [],
+               'transferred_bytes': 0,
+               'bits_per_second': 0,
+               }
+
+    src_ip = get_src_ip_from_dest(ip)
+    interface = ch_ip.get_iface_from_addr(src_ip)
+    src_mac = get_iface_mac(interface)
+    results['src_interface'] = interface
+    results['src_mac'] = src_mac
+    results['src_ip'] = src_ip
+    results['dest_ip'] = ip
+
     if out:
-        results = {'src_port': [],
-                   'dest_port': '',
-                   'dest_node': node_name,
-                   'session': [],
-                   'transferred_bytes': 0,
-                   'bits_per_second': 0,
-                   }
         for line in out.split():
             timestamp, src_ip, src_port, dest_ip, dest_port, \
                 session, time_interval, xferred_bytes, bits_per_s \
                 = line.split(',')
 
-            # The following values will be identical on each line,
-            # so only set the fields once.
-            if not results.get('timestamp'):
-                results['timestamp'] = timestamp
-                results['src_ip'] = src_ip
-                results['dest_ip'] = dest_ip
-                results['dest_port'] = dest_port
-                results['time_interval'] = time_interval
-                results['concurrency'] = concurrency
+            # On Focal, a supplementary line with the summarised total
+            # needs to be ignored, this can be recognised with the
+            # session being set to -1 on the line
+            if session != '-1':
 
-            # for now magpie only use one iperf server as
-            # destination, it is not useful to record multiple
-            # time the destination port since it is identical
-            results['src_port'].append(int(src_port))
-            results['session'].append(int(session))
-            results['transferred_bytes'] += int(xferred_bytes)
-            results['bits_per_second'] += int(bits_per_s)
+                # The following values will be identical on each line,
+                # so only set the fields once.
+                if not results.get('timestamp'):
+                    results['timestamp'] = timestamp
+                    results['dest_port'] = dest_port
+                    results['time_interval'] = time_interval
+                    results['concurrency'] = concurrency
+
+                # for now magpie only use one iperf server as
+                # destination, it is not useful to record multiple
+                # time the destination port since it is identical
+                results['src_port'].append(int(src_port))
+                results['session'].append(int(session))
+                results['transferred_bytes'] += int(xferred_bytes)
+                results['bits_per_second'] += int(bits_per_s)
 
         results['GBytes_transferred'] = round(
             float(results['transferred_bytes'] / 1024**3),
@@ -170,11 +183,7 @@ async def run_iperf(node_name, ip, iperf_batch_time, concurrency):
         )
 
         # retrieve supplementary informations not provided by iperf
-        interface = ch_ip.get_iface_from_addr(results['src_ip'])
-        src_mac = get_iface_mac(interface)
         dest_mac = get_dest_mac(interface, results['dest_ip'])
-        results['src_interface'] = interface
-        results['src_mac'] = src_mac
         results['dest_mac'] = dest_mac
 
         hookenv.log(
@@ -185,8 +194,8 @@ async def run_iperf(node_name, ip, iperf_batch_time, concurrency):
             f"{results['Mbits_per_second']} Mbps",
             'INFO'
         )
-        return results
-    return {}
+
+    return results
 
 
 class Iperf():
@@ -345,6 +354,7 @@ class Iperf():
         plan = self.get_plan(progression, increment)
         finish_time = datetime.datetime.now() + datetime.timedelta(
             seconds=total_runtime)
+        failure = False
 
         self.wipe_batch_ctrl_file()
         action_output = []
@@ -352,7 +362,7 @@ class Iperf():
         # Prometheus target for scraping of collected FIO metrics
         start_http_server(8088)
 
-        while datetime.datetime.now() < finish_time:
+        while datetime.datetime.now() < finish_time and not failure:
 
             contents = self.read_batch_ctrl_file()
             if contents:
@@ -382,8 +392,13 @@ class Iperf():
                     ]
                 )
             )
+            # the loop should be stopped if iperf does not work
+            for result in results:
+                if result['transferred_bytes'] == 0:
+                    failure = True
             self.process_results(results, nodes, concurrency, tag)
             action_output.append(results)
+
         return action_output
 
 
@@ -663,6 +678,29 @@ def get_link_speed(iface):
                     .format(iface, str(e)),
                     hookenv.WARNING)
         return -1
+
+
+def get_src_ip_from_dest(address):
+    args = [
+        "ip",
+        "-j",
+        "route",
+        "get",
+        address,
+    ]
+
+    iproute = subprocess.run(
+        args,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    output = json.loads(iproute.stdout.decode())
+
+    # if there is no results, iproute returns an empty list
+    if output:
+        return output[0]['prefsrc']
+    else:
+        return ""
 
 
 def get_iface_mac(iface):
