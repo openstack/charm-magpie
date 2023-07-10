@@ -3,7 +3,8 @@ charm_name: magpie
 gate_bundles:
 - focal
 - jammy
-- kinetic
+
+dev_bundles:
 - lunar
 
 smoke_bundles:

@@ -1,16 +1,18 @@
 - project:
     templates:
-      - charm-unit-jobs-py36
       - charm-unit-jobs-py38
       - charm-unit-jobs-py310
     check:
       jobs:
       - focal
       - jammy
-      - kinetic
-      - lunar
+# Lunar is set to optional due to issue with charmcraft when packing from Lunar
+      - lunar:
+          voting: false
     vars:
       needs_charm_build: true
       charm_build_name: magpie
       build_type: charmcraft
-      charmcraft_channel: 2.2/stable
+      # charmcraft 2.3 is required to build on Lunar
+      # https://github.com/canonical/charmcraft/issues/1104
+      charmcraft_channel: latest/edge
