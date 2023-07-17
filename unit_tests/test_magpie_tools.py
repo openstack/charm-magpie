@@ -274,3 +274,58 @@ class TestMagpieTools(CharmTestCase):
             magpie_tools.get_src_ip_from_dest("192.168.12.1"),
             '192.168.12.15',
         )
+
+    @patch('subprocess.check_output')
+    def test_forward_dns_good(self, mock_subprocess):
+        ip = "10.0.0.99"
+        unit_id = "magpie/0"
+        self.hookenv.config.return_value = {
+            "dns_server": "127.0.0.1",
+            "dns_tries": "1",
+            "dns_time": "3"
+        }
+        mock_subprocess.side_effect = [
+            b"example.com\n",  # for reverse_dns
+            b"10.0.0.99\n"  # for forward_dns
+        ]
+        mock_subprocess.side_effect = [b"example.com\n", b"10.0.0.99\n"]
+        norev, nofwd, nomatch = magpie_tools.check_dns([(unit_id, ip)])
+        self.assertEqual(
+            norev, [], "Reverse lookup failed for IP {}".format(ip))
+        self.assertEqual(
+            nofwd, [], ("Forward lookup failed for IP {}, "
+                        "faked to example.com".format(ip)))
+        self.assertEqual(
+            nomatch, [], "Reverse and forward lookups didn't match")
+
+    @patch('subprocess.check_output')
+    def test_forward_dns_multiple_ips(self, mock_subprocess):
+        ip = "10.0.0.99"
+        unit_id = "magpie/0"
+        self.hookenv.config.return_value = {
+            "dns_server": "127.0.0.1",
+            "dns_tries": "1",
+            "dns_time": "3"
+        }
+        mock_subprocess.side_effect = [
+            b"example.com\n",  # for reverse_dns
+            b"10.0.0.99\n10.1.0.99\n10.2.0.99\n"  # for forward_dns
+        ]
+        norev, nofwd, nomatch = magpie_tools.check_dns([(unit_id, ip)])
+        self.assertEqual(
+            norev, [], "Reverse lookup failed for IP {}".format(ip))
+        self.assertEqual(
+            nofwd, [], ("Forward lookup failed for IP {}, "
+                        "faked to example.com".format(ip))
+        )
+        self.assertEqual(
+            nomatch, [], "Reverse and forward lookups didn't match")
+        self.hookenv.log.assert_any_call(
+            "Forward result for unit_id: 0, "
+            "ip: 10.0.0.99\n10.1.0.99\n10.2.0.99, exitcode: 0"
+        )
+        self.hookenv.log.assert_any_call(
+            "Original IP and Forward MATCH OK for unit_id: 0, "
+            "Original: 10.0.0.99, "
+            "Forward: ['10.0.0.99', '10.1.0.99', '10.2.0.99']", "INFO"
+        )

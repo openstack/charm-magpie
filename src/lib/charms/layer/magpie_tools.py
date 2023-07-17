@@ -993,7 +993,8 @@ def check_dns(nodes):
                                 " unit_id: {}".format(unit_id), 'INFO')
                     if unit_id in nofwd:
                         nofwd.remove(unit_id)
-                    if ip != forward:
+                    forward_ips = forward.splitlines()
+                    if ip not in forward_ips:
                         mstr = r'(r\"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")'
                         if not re.match(mstr, forward):
                             forward = "Can not resolve hostname to IP {}"\
@@ -1004,9 +1005,9 @@ def check_dns(nodes):
                         if unit_id not in nomatch:
                             nomatch.append(unit_id)
                     else:
-                        hookenv.log("Original IP and Forward MATCH OK for \
-                                    unit_id: {}, Original: {}, Forward: {}"
-                                    .format(unit_id, ip, forward),
+                        hookenv.log("Original IP and Forward MATCH OK for"
+                                    " unit_id: {}, Original: {}, Forward: {}"
+                                    .format(unit_id, ip, forward_ips),
                                     'INFO')
                         if unit_id in nomatch:
                             nomatch.remove(unit_id)
