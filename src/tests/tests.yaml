@@ -6,6 +6,7 @@ gate_bundles:
 
 dev_bundles:
 - lunar
+- mantic
 
 smoke_bundles:
 - jammy
@@ -20,3 +21,4 @@ tests:
 tests_options:
   force_deploy:
     - lunar
+    - mantic
