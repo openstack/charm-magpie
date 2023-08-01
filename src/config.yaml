@@ -51,6 +51,12 @@ options:
     default: 0.05
     description: Number of seconds to wait between sending each packet
     type: float
+  ping_mesh_mode:
+    default: true
+    description: |
+      If true: each unit will ping each other unit.
+      If false: only the leader unit will ping each other unit.
+    type: boolean
   supress_status:
     default: False
     description: Enable this if you intend to consume this layer - suppresses status messages
