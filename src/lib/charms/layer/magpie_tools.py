@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import asyncio
+from collections.abc import Iterable
 import datetime
 import os
 import subprocess
@@ -855,7 +856,12 @@ def check_nodes(nodes, iperf_client=False):
     if not no_ping:
         no_ping = 'icmp ok'
     else:
-        no_ping = 'icmp failed: ' + str(no_ping)
+        ping_errors_text = (
+            '; '.join(str(x) for x in no_ping)
+            if isinstance(no_ping, Iterable) and not isinstance(no_ping, str)
+            else no_ping
+        )
+        no_ping = 'icmp failed: {}'.format(ping_errors_text)
 
     if no_dns == ([], [], []):
         dns_status = ', dns ok'
