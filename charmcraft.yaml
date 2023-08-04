@@ -14,7 +14,6 @@ parts:
     build-environment:
       - CHARM_INTERFACES_DIR: $CRAFT_PROJECT_DIR/interfaces/
       - CHARM_LAYERS_DIR: $CRAFT_PROJECT_DIR/layers/
-
 bases:
   - build-on:
       - name: ubuntu
@@ -26,6 +25,30 @@ bases:
         architectures: [amd64]
   - build-on:
       - name: ubuntu
+        channel: "20.04"
+        architectures: [s390x]
+    run-on:
+      - name: ubuntu
+        channel: "20.04"
+        architectures: [s390x]
+  - build-on:
+      - name: ubuntu
+        channel: "20.04"
+        architectures: [ppc64el]
+    run-on:
+      - name: ubuntu
+        channel: "20.04"
+        architectures: [ppc64el]
+  - build-on:
+      - name: ubuntu
+        channel: "20.04"
+        architectures: [arm64]
+    run-on:
+      - name: ubuntu
+        channel: "20.04"
+        architectures: [arm64]
+  - build-on:
+      - name: ubuntu
         channel: "22.04"
         architectures: [amd64]
     run-on:
@@ -34,6 +57,30 @@ bases:
         architectures: [amd64]
   - build-on:
       - name: ubuntu
+        channel: "22.04"
+        architectures: [s390x]
+    run-on:
+      - name: ubuntu
+        channel: "22.04"
+        architectures: [s390x]
+  - build-on:
+      - name: ubuntu
+        channel: "22.04"
+        architectures: [ppc64el]
+    run-on:
+      - name: ubuntu
+        channel: "22.04"
+        architectures: [ppc64el]
+  - build-on:
+      - name: ubuntu
+        channel: "22.04"
+        architectures: [arm64]
+    run-on:
+      - name: ubuntu
+        channel: "22.04"
+        architectures: [arm64]
+  - build-on:
+      - name: ubuntu
         channel: "23.04"
         architectures: [amd64]
     run-on:
@@ -42,22 +89,6 @@ bases:
         architectures: [amd64]
   - build-on:
       - name: ubuntu
-        channel: "20.04"
-        architectures: [s390x]
-    run-on:
-      - name: ubuntu
-        channel: "20.04"
-        architectures: [s390x]
-  - build-on:
-      - name: ubuntu
-        channel: "22.04"
-        architectures: [s390x]
-    run-on:
-      - name: ubuntu
-        channel: "22.04"
-        architectures: [s390x]
-  - build-on:
-      - name: ubuntu
         channel: "23.04"
         architectures: [s390x]
     run-on:
@@ -66,44 +97,12 @@ bases:
         architectures: [s390x]
   - build-on:
       - name: ubuntu
-        channel: "20.04"
-        architectures: [ppc64el]
-    run-on:
-      - name: ubuntu
-        channel: "20.04"
-        architectures: [ppc64el]
-  - build-on:
-      - name: ubuntu
-        channel: "22.04"
-        architectures: [ppc64el]
-    run-on:
-      - name: ubuntu
-        channel: "22.04"
-        architectures: [ppc64el]
-  - build-on:
-      - name: ubuntu
         channel: "23.04"
-        architectures: [pcc64el]
+        architectures: [ppc64el]
     run-on:
       - name: ubuntu
         channel: "23.04"
         architectures: [ppc64el]
-  - build-on:
-      - name: ubuntu
-        channel: "20.04"
-        architectures: [arm64]
-    run-on:
-      - name: ubuntu
-        channel: "20.04"
-        architectures: [arm64]
-  - build-on:
-      - name: ubuntu
-        channel: "22.04"
-        architectures: [arm64]
-    run-on:
-      - name: ubuntu
-        channel: "22.04"
-        architectures: [arm64]
   - build-on:
       - name: ubuntu
         channel: "23.04"
@@ -111,4 +110,36 @@ bases:
     run-on:
       - name: ubuntu
         channel: "23.04"
+        architectures: [arm64]
+  - build-on:
+      - name: ubuntu
+        channel: "23.10"
+        architectures: [amd64]
+    run-on:
+      - name: ubuntu
+        channel: "23.10"
+        architectures: [amd64]
+  - build-on:
+      - name: ubuntu
+        channel: "23.10"
+        architectures: [s390x]
+    run-on:
+      - name: ubuntu
+        channel: "23.10"
+        architectures: [s390x]
+  - build-on:
+      - name: ubuntu
+        channel: "23.10"
+        architectures: [ppc64el]
+    run-on:
+      - name: ubuntu
+        channel: "23.10"
+        architectures: [ppc64el]
+  - build-on:
+      - name: ubuntu
+        channel: "23.10"
+        architectures: [arm64]
+    run-on:
+      - name: ubuntu
+        channel: "23.10"
         architectures: [arm64]
