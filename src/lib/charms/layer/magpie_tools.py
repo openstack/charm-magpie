@@ -409,7 +409,7 @@ def safe_status(workload, status):
         hookenv.status_set(workload, status)
 
 
-def ping(addr, timeout, count, interval, mtu=None) -> int:
+async def ping(addr, timeout, count, interval, mtu=None) -> int:
     """
     Ping `addr` with provided options.
 
@@ -438,17 +438,22 @@ def ping(addr, timeout, count, interval, mtu=None) -> int:
     if mtu:
         args.extend(("-M", "do", "-s", str(int(mtu) - 28)))
     args.append(addr)
-    hookenv.log('Ping command: {}'.format(" ".join(args)), hookenv.DEBUG)
-    proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    args = " ".join(args)
+
+    # Yes this is a blocking call, but doesn't block for long.
+    # We only need to parallelise the ping calls, which block for much longer.
+    hookenv.log('Ping command: {}'.format(args), hookenv.DEBUG)
+
+    stdout = await run(args)
 
     match = re.search(
         r"(\d+)(?:\.\d+)?%\s+packet\s+loss",
-        proc.stdout.decode()
+        stdout
     )
     if match:
         return int(match.group(1))
     hookenv.log(
-        f"pinging {addr} failed with output: '{proc.stdout}'",
+        f"pinging {addr} failed with output: '{stdout}'",
         hookenv.DEBUG
     )
     return 100
@@ -901,6 +906,33 @@ def check_nodes(nodes, iperf_client=False):
     return reactive_state
 
 
+async def async_check_ping(node, mtu):
+    cfg = hookenv.config()
+    ping_timeout = cfg.get('ping_timeout')
+    ping_tries = cfg.get('ping_tries')
+    ping_interval = cfg.get('ping_interval')
+    unit_id = node[0].split('/')[1]
+    hookenv.log('Pinging unit_id: ' + str(unit_id), 'INFO')
+    packet_loss = await ping(
+        node[1], ping_timeout, ping_tries,
+        ping_interval, mtu=mtu
+    )
+    if packet_loss > 0:
+        hookenv.log(
+            f'Ping FAILED for unit_id: {unit_id}.  '
+            f'{packet_loss}% packet loss',
+            hookenv.ERROR
+        )
+        return f"{unit_id}: {packet_loss}% packet loss"
+    else:
+        hookenv.log(
+            f'Ping OK for unit_id: {unit_id}.  '
+            f'{packet_loss}% packet loss',
+            hookenv.INFO
+        )
+        return ""
+
+
 def check_ping(nodes, mtu=None):
     """
     Ping nodes and return list of unreachable unit ids.
@@ -910,31 +942,18 @@ def check_ping(nodes, mtu=None):
     :returns: a list of unreachable unit ids.
     :rtype: List[str]
     """
-    cfg = hookenv.config()
-    ping_timeout = cfg.get('ping_timeout')
-    ping_tries = cfg.get('ping_tries')
-    ping_interval = cfg.get('ping_interval')
-    unreachable = []
-    for node in nodes:
-        unit_id = node[0].split('/')[1]
-        hookenv.log('Pinging unit_id: ' + str(unit_id), 'INFO')
-        packet_loss = ping(node[1], ping_timeout, ping_tries,
-                           ping_interval, mtu=mtu)
-        if packet_loss > 0:
-            hookenv.log(
-                f'Ping FAILED for unit_id: {unit_id}.  '
-                f'{packet_loss}% packet loss',
-                hookenv.ERROR
-            )
-            unreachable.append(f"{unit_id}: {packet_loss}% packet loss")
-        else:
-            hookenv.log(
-                f'Ping OK for unit_id: {unit_id}.  '
-                f'{packet_loss}% packet loss',
-                hookenv.INFO
-            )
+    loop = asyncio.get_event_loop()
 
-    return unreachable
+    unreachable = loop.run_until_complete(
+        asyncio.gather(
+            *[
+                async_check_ping(node, mtu)
+                for node in nodes
+            ]
+        )
+    )
+
+    return list(filter(lambda x: x, unreachable))
 
 
 def check_dns(nodes):
