@@ -275,6 +275,55 @@ class TestMagpieTools(CharmTestCase):
             '192.168.12.15',
         )
 
+    def test_parse_dig_yaml(self):
+        output = """
+        -
+          type: MESSAGE
+          message:
+            response_message_data:
+              ANSWER_SECTION:
+                - 99.0.0.10.in-addr.arpa. 30 IN PTR example.com.
+        """
+        result, stderr = magpie_tools.parse_dig_yaml(
+            output,
+            "",
+            1,
+            30,
+            is_reverse_query=True,
+        )
+        self.assertEqual(result, 'example.com')
+        self.assertEqual(stderr, 0)
+
+    @patch('subprocess.check_output')
+    def test_parse_dig_yaml_calls_resolves_cname(self, mock_subprocess):
+        output = "-\n  type: MESSAGE\n"
+        output += "  message:\n"
+        output += "    response_message_data:\n"
+        output += "      ANSWER_SECTION:\n"
+        output += "        - 99.0.0.10.in-addr.arpa. 30 IN CNAME"
+        output += " 99.1-25.0.0.10.in-addr.arpa"
+
+        rev_response = """
+        -
+          type: MESSAGE
+          message:
+            response_message_data:
+              ANSWER_SECTION:
+                - 99.0.0.10.in-addr.arpa. 30 IN PTR example.com.
+        """
+        mock_subprocess.side_effect = [
+            bytes(rev_response, "utf-8")
+        ]
+        result, stderr = magpie_tools.parse_dig_yaml(
+            output,
+            "",
+            1,
+            30,
+            is_reverse_query=True,
+        )
+        self.assertEqual(result, 'example.com')
+        self.assertEqual(stderr, 0)
+
     @patch('subprocess.check_output')
     def test_forward_dns_good(self, mock_subprocess):
         ip = "10.0.0.99"
@@ -284,11 +333,26 @@ class TestMagpieTools(CharmTestCase):
             "dns_tries": "1",
             "dns_time": "3"
         }
+        rev_response = """
+        -
+          type: MESSAGE
+          message:
+            response_message_data:
+              ANSWER_SECTION:
+                - 99.0.0.10.in-addr.arpa. 30 IN PTR example.com.
+        """
+        fwd_response = """
+        -
+          type: MESSAGE
+          message:
+            response_message_data:
+              ANSWER_SECTION:
+                - example.com. 30 IN A 10.0.0.99
+        """
         mock_subprocess.side_effect = [
-            b"example.com\n",  # for reverse_dns
-            b"10.0.0.99\n"  # for forward_dns
+            bytes(rev_response, "utf-8"),  # for reverse_dns
+            bytes(fwd_response, "utf-8")  # for forward_dns
         ]
-        mock_subprocess.side_effect = [b"example.com\n", b"10.0.0.99\n"]
         norev, nofwd, nomatch = magpie_tools.check_dns([(unit_id, ip)])
         self.assertEqual(
             norev, [], "Reverse lookup failed for IP {}".format(ip))
@@ -307,9 +371,27 @@ class TestMagpieTools(CharmTestCase):
             "dns_tries": "1",
             "dns_time": "3"
         }
+        rev_response = """
+        -
+          type: MESSAGE
+          message:
+            response_message_data:
+              ANSWER_SECTION:
+                - 99.0.0.10.in-addr.arpa. 30 IN PTR example.com.
+        """
+        fwd_response = """
+        -
+          type: MESSAGE
+          message:
+            response_message_data:
+              ANSWER_SECTION:
+                - example.com. 30 IN A 10.0.0.99
+                - example.com. 30 IN A 10.1.0.99
+                - example.com. 30 IN A 10.2.0.99
+        """
         mock_subprocess.side_effect = [
-            b"example.com\n",  # for reverse_dns
-            b"10.0.0.99\n10.1.0.99\n10.2.0.99\n"  # for forward_dns
+            bytes(rev_response, "utf-8"),  # for reverse_dns
+            bytes(fwd_response, "utf-8")  # for forward_dns
         ]
         norev, nofwd, nomatch = magpie_tools.check_dns([(unit_id, ip)])
         self.assertEqual(
@@ -328,4 +410,60 @@ class TestMagpieTools(CharmTestCase):
             "Original IP and Forward MATCH OK for unit_id: 0, "
             "Original: 10.0.0.99, "
             "Forward: ['10.0.0.99', '10.1.0.99', '10.2.0.99']", "INFO"
+        )
+
+    @patch('subprocess.check_output')
+    def test_cname_dns_is_followed(self, mock_subprocess):
+        ip = "10.0.0.99"
+        unit_id = "magpie/0"
+        self.hookenv.config.return_value = {
+            "dns_server": "127.0.0.1",
+            "dns_tries": "1",
+            "dns_time": "3",
+        }
+        rev_response = "-\n"
+        rev_response += "  type: MESSAGE\n"
+        rev_response += "  message:\n"
+        rev_response += "    response_message_data:\n"
+        rev_response += "      ANSWER_SECTION:\n"
+        rev_response += "        - 99.0.0.10.in-addr.arpa. 30 IN CNAME"
+        rev_response += " 99.1-25.0.0.10.in-addr.arpa"
+        cname_response = """
+        -
+          type: MESSAGE
+          message:
+            response_message_data:
+              ANSWER_SECTION:
+                - 99.0-25.0.10.in-addr.arpa. 30 IN PTR example.com
+        """
+        fwd_response = """
+        -
+          type: MESSAGE
+          message:
+            response_message_data:
+              ANSWER_SECTION:
+                - example.com. 30 IN A 10.0.0.99
+        """
+        mock_subprocess.side_effect = [
+            bytes(rev_response, "utf-8"),  # for reverse_dns
+            bytes(cname_response, "utf-8"),  # for resolve_cname
+            bytes(fwd_response, "utf-8")  # for forward_dns
+        ]
+        norev, nofwd, nomatch = magpie_tools.check_dns([(unit_id, ip)])
+        self.assertEqual(
+            norev, [], "Reverse lookup failed for IP {}".format(ip))
+        self.assertEqual(
+            nofwd, [], ("Forward lookup failed for IP {}, "
+                        "faked to example.com".format(ip))
+        )
+        self.assertEqual(
+            nomatch, [], "Reverse and forward lookups didn't match")
+        self.hookenv.log.assert_any_call(
+            "Forward result for unit_id: 0, "
+            "ip: 10.0.0.99, exitcode: 0"
+        )
+        self.hookenv.log.assert_any_call(
+            "Original IP and Forward MATCH OK for unit_id: 0, "
+            "Original: 10.0.0.99, "
+            "Forward: ['10.0.0.99']", "INFO"
         )
