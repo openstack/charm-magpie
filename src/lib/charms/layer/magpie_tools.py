@@ -28,6 +28,7 @@ from charmhelpers.fetch import apt_install
 import charmhelpers.contrib.network.ip as ch_ip
 from prometheus_client import Gauge, start_http_server
 import netifaces
+import yaml
 
 
 class Lldp():
@@ -1041,39 +1042,89 @@ def check_dns(nodes):
     return norev, nofwd, nomatch
 
 
+def _execute_dig(cmd, dns_server, tries, timeout, lookup_type):
+    try:
+        output = (subprocess.check_output(cmd, shell=True)
+                  .decode('utf-8').rstrip())
+        result, stderr = parse_dig_yaml(
+            output,
+            dns_server,
+            tries,
+            timeout,
+            is_reverse_query=lookup_type == 'reverse',
+        )
+    except subprocess.CalledProcessError as exc:
+        result = lookup_type.title() + " DNS lookup error: " + str(exc.output)
+        stderr = exc.returncode
+    if result == '':
+        result = 'No {} response'.format(lookup_type)
+        stderr = 1
+    return result, stderr
+
+
+def resolve_cname(label, dns_server, tries, timeout, rec_type):
+    cmd = '/usr/bin/dig {} +yaml +tries={} +time={}'.format(
+        label,
+        tries,
+        timeout,
+    )
+    if rec_type:
+        cmd += ' ' + rec_type
+    if dns_server:
+        cmd = '{} @{}'.format(cmd, dns_server)
+    return _execute_dig(cmd, dns_server, tries, timeout, 'cname')
+
+
+def parse_dig_yaml(output, dns_server, tries, timeout, is_reverse_query=False):
+    try:
+        responses = yaml.safe_load(output)
+    except yaml.YAMLError:
+        result = f"Cannot parse {output.enocde('utf-8')} as YAML"
+        stderr = 2
+        return result, stderr
+
+    result = ''
+    stderr = 0
+    for response in responses:
+        if response['type'] == 'MESSAGE':
+            response_data = response['message']['response_message_data']
+            for answer in response_data['ANSWER_SECTION']:
+                split_answer = answer.split(' ')
+                rec_type = split_answer[3]
+                rrdata = ' '.join(split_answer[4:])
+                if rec_type in ('PTR', 'CNAME') and rrdata[-1] == '.':
+                    rrdata = rrdata[:-1]
+                if rec_type == 'CNAME':
+                    cname_result, stderr = resolve_cname(
+                        rrdata,
+                        dns_server,
+                        tries,
+                        timeout,
+                        'PTR' if is_reverse_query else '',
+                    )
+                    if stderr != 0:
+                        return cname_result, stderr
+                    result += cname_result
+                else:
+                    result += rrdata + '\n'
+    if result[-1] == '\n':
+        result = result[:-1]
+    return result, stderr
+
+
 def reverse_dns(input, dns_server, tries, timeout):
-    cmd = '/usr/bin/dig -x ' + input + ' +short +tries={} +time={}'\
+    cmd = '/usr/bin/dig -x ' + input + ' +yaml +tries={} +time={}'\
         .format(tries, timeout)
     if dns_server:
         cmd = '{} @{}'.format(cmd, dns_server)
     hookenv.log('DNS Reverse command: {}'.format(cmd), 'DEBUG')
-    try:
-        result = subprocess.check_output(cmd, shell=True)\
-            .decode('utf-8').rstrip()
-        stderr = 0
-    except subprocess.CalledProcessError as exc:
-        result = "Reverse DNS lookup error: " + str(exc.output)
-        stderr = exc.returncode
-    if result == '':
-        result = 'No reverse response'
-        stderr = 1
-    return result, stderr
+    return _execute_dig(cmd, dns_server, tries, timeout, 'reverse')
 
 
 def forward_dns(input, dns_server, tries, timeout):
-    cmd = '/usr/bin/dig ' + input + ' +short +tries={} +time={}'\
+    cmd = '/usr/bin/dig ' + input + ' +yaml +tries={} +time={}'\
         .format(tries, timeout)
     if dns_server:
         cmd = '{} @{}'.format(cmd, dns_server)
     hookenv.log('DNS Forward command: {}'.format(cmd), 'DEBUG')
-    try:
-        result = subprocess.check_output(cmd, shell=True)\
-            .decode('utf-8').rstrip()
-        stderr = 0
-    except subprocess.CalledProcessError as exc:
-        result = "Forward DNS lookup error: " + str(exc.output)
-        stderr = exc.returncode
-    if result == '':
-        result = 'No forward response'
-        stderr = 1
-    return result, stderr
+    return _execute_dig(cmd, dns_server, tries, timeout, 'forward')
