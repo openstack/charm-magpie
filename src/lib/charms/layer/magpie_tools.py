@@ -1088,7 +1088,7 @@ def parse_dig_yaml(output, dns_server, tries, timeout, is_reverse_query=False):
     for response in responses:
         if response['type'] == 'MESSAGE':
             response_data = response['message']['response_message_data']
-            for answer in response_data['ANSWER_SECTION']:
+            for answer in response_data.get('ANSWER_SECTION', []):
                 split_answer = answer.split(' ')
                 rec_type = split_answer[3]
                 rrdata = ' '.join(split_answer[4:])
@@ -1107,7 +1107,7 @@ def parse_dig_yaml(output, dns_server, tries, timeout, is_reverse_query=False):
                     result += cname_result
                 else:
                     result += rrdata + '\n'
-    if result[-1] == '\n':
+    if result and result[-1] == '\n':
         result = result[:-1]
     return result, stderr
 

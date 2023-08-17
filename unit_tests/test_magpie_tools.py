@@ -467,3 +467,37 @@ class TestMagpieTools(CharmTestCase):
             "Original: 10.0.0.99, "
             "Forward: ['10.0.0.99']", "INFO"
         )
+
+    @patch('subprocess.check_output')
+    def test_check_dns_gracefully_handles_no_answer(self, mock_subprocess):
+        ip = "10.0.0.99"
+        unit_id = "magpie/0"
+        self.hookenv.config.return_value = {
+            "dns_server": "127.0.0.1",
+            "dns_tries": "1",
+            "dns_time": "3"
+        }
+        rev_response = """
+        -
+          type: MESSAGE
+          message:
+            response_message_data: {}
+        """
+        fwd_response = """
+        -
+          type: MESSAGE
+          message:
+            response_message_data: {}
+        """
+        mock_subprocess.side_effect = [
+            bytes(rev_response, "utf-8"),  # for reverse_dns
+            bytes(fwd_response, "utf-8")  # for forward_dns
+        ]
+        norev, nofwd, nomatch = magpie_tools.check_dns([(unit_id, ip)])
+        self.assertEqual(
+            norev, ['0'], "Reverse lookup had an answer for {}".format(ip))
+        self.assertEqual(
+            nofwd, [], ("Forward lookup failed for IP {}, "
+                        "faked to example.com".format(ip)))
+        self.assertEqual(
+            nomatch, [], "Reverse and forward lookups didn't match")
