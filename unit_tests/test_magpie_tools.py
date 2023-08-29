@@ -427,16 +427,17 @@ class TestMagpieTools(CharmTestCase):
         rev_response += "    response_message_data:\n"
         rev_response += "      ANSWER_SECTION:\n"
         rev_response += "        - 99.0.0.10.in-addr.arpa. 30 IN CNAME"
-        rev_response += " 99.1-25.0.0.10.in-addr.arpa"
+        rev_response += " 99.1-25.0.0.10.in-addr.arpa."
         cname_response = """
         -
           type: MESSAGE
           message:
             response_message_data:
               ANSWER_SECTION:
-                - 99.0-25.0.10.in-addr.arpa. 30 IN PTR example.com
+                - 99.0-25.0.10.in-addr.arpa. 30 IN PTR example.com.
+                - 99.0-25.0.10.in-addr.arpa. 30 IN PTR other.example.com.
         """
-        fwd_response = """
+        fwd_response_1 = """
         -
           type: MESSAGE
           message:
@@ -444,10 +445,19 @@ class TestMagpieTools(CharmTestCase):
               ANSWER_SECTION:
                 - example.com. 30 IN A 10.0.0.99
         """
+        fwd_response_2 = """
+        -
+          type: MESSAGE
+          message:
+            response_message_data:
+              ANSWER_SECTION:
+                - other.example.com. 30 IN A 10.0.0.99
+        """
         mock_subprocess.side_effect = [
             bytes(rev_response, "utf-8"),  # for reverse_dns
             bytes(cname_response, "utf-8"),  # for resolve_cname
-            bytes(fwd_response, "utf-8")  # for forward_dns
+            bytes(fwd_response_1, "utf-8"),  # for forward_dns
+            bytes(fwd_response_2, "utf-8")  # for forward_dns
         ]
         norev, nofwd, nomatch = magpie_tools.check_dns([(unit_id, ip)])
         self.assertEqual(

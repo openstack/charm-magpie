@@ -1104,7 +1104,7 @@ def parse_dig_yaml(output, dns_server, tries, timeout, is_reverse_query=False):
                     )
                     if stderr != 0:
                         return cname_result, stderr
-                    result += cname_result
+                    result += cname_result + '\n'
                 else:
                     result += rrdata + '\n'
     if result and result[-1] == '\n':
