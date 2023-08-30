@@ -22,6 +22,7 @@ import re
 import time
 import json
 import psutil
+from typing import Tuple
 from charmhelpers.core import hookenv
 from charmhelpers.core.host import get_nic_mtu, service_start, service_running
 from charmhelpers.fetch import apt_install
@@ -410,12 +411,13 @@ def safe_status(workload, status):
         hookenv.status_set(workload, status)
 
 
-async def ping(addr, timeout, count, interval, mtu=None) -> int:
+async def ping(addr, timeout, count, interval, mtu=None) -> Tuple[int, int]:
     """
     Ping `addr` with provided options.
 
-    Return an integer between 0 and 100,
-    representing the percentage of packet loss.
+    Return a tuple of integers,
+    where the first integer is the number of packets received,
+    and the second integer is the number of packets transmitted.
 
     :param addr: ip address or hostname to ping
     :type addr: str
@@ -427,8 +429,8 @@ async def ping(addr, timeout, count, interval, mtu=None) -> int:
     :type interval: Union[str, int, float]
     :param mtu: optional packet size to send
     :type mtu: Union[str, int, None]
-    :returns: an integer between 0 and 100
-    :rtype: int
+    :returns: a tuple of two integers
+    :rtype: Tuple[int, int]
     """
     args = [
         "ping",
@@ -447,17 +449,19 @@ async def ping(addr, timeout, count, interval, mtu=None) -> int:
 
     stdout = await run(args)
 
+    hookenv.log(f'ping stdout {stdout}')
     match = re.search(
-        r"(\d+)(?:\.\d+)?%\s+packet\s+loss",
+        r"(\d+)\s*packets\s+transmitted,\s*(\d+)\s*received",
         stdout
     )
+    hookenv.log(f'match {match}')
     if match:
-        return int(match.group(1))
+        return (int(match.group(2)), int(match.group(1)))
     hookenv.log(
         f"pinging {addr} failed with output: '{stdout}'",
         hookenv.DEBUG
     )
-    return 100
+    return (0, count)
 
 
 def check_local_hostname():
@@ -914,24 +918,24 @@ async def async_check_ping(node, mtu):
     ping_interval = cfg.get('ping_interval')
     unit_id = node[0].split('/')[1]
     hookenv.log('Pinging unit_id: ' + str(unit_id), 'INFO')
-    packet_loss = await ping(
+    (received, transmitted) = await ping(
         node[1], ping_timeout, ping_tries,
         ping_interval, mtu=mtu
     )
-    if packet_loss > 0:
-        hookenv.log(
-            f'Ping FAILED for unit_id: {unit_id}.  '
-            f'{packet_loss}% packet loss',
-            hookenv.ERROR
-        )
-        return f"{unit_id}: {packet_loss}% packet loss"
-    else:
+    if transmitted > 0 and received == transmitted:
         hookenv.log(
             f'Ping OK for unit_id: {unit_id}.  '
-            f'{packet_loss}% packet loss',
+            f'{transmitted} packets transmitted, {received} received',
             hookenv.INFO
         )
         return ""
+    else:
+        hookenv.log(
+            f'Ping FAILED for unit_id: {unit_id}.  '
+            f'{transmitted} packets transmitted, {received} received',
+            hookenv.ERROR
+        )
+        return f"{unit_id}: {received}/{transmitted} packets received"
 
 
 def check_ping(nodes, mtu=None):
