@@ -114,7 +114,7 @@ def client_check_hosts(magpie):
     Once the iperf servers are listening, do the checks
     '''
     nodes = magpie.get_nodes()
-    _set_states(check_nodes(nodes, iperf_client=True))
+    _set_states(check_nodes(nodes, is_leader=True))
     magpie.set_iperf_checked()
 
 

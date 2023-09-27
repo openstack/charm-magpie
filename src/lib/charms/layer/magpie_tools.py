@@ -751,7 +751,8 @@ def get_dest_mac(iface, address):
         return ""
 
 
-def check_nodes(nodes, iperf_client=False):
+def check_nodes(nodes, is_leader=False):
+    iperf_client = is_leader
     cfg = hookenv.config()
     local_ip = hookenv.network_get("magpie")['ingress-addresses'][0]
     iface_lines = subprocess.check_output(["ip", "route", "show", "to",
@@ -846,7 +847,22 @@ def check_nodes(nodes, iperf_client=False):
             hookenv.log('Local hostname lookup FAILED: {}'.format(
                 str(no_hostname)), 'ERROR')
 
-    no_ping = check_ping(nodes)
+    if cfg.get('ping_mesh_mode') or is_leader:
+        unreachable_nodes = check_ping(nodes)
+        if unreachable_nodes:
+            ping_errors_text = (
+                '; '.join(str(x) for x in unreachable_nodes)
+                if (
+                    isinstance(unreachable_nodes, Iterable)
+                    and not isinstance(unreachable_nodes, str)
+                ) else unreachable_nodes
+            )
+            icmp_message = 'icmp failed: {}'.format(ping_errors_text)
+        else:
+            icmp_message = 'icmp ok'
+    else:
+        icmp_message = 'icmp skipped'
+
     cfg_check_dns = cfg.get('check_dns')
     if cfg_check_dns:
         no_dns = check_dns(nodes)
@@ -862,16 +878,6 @@ def check_nodes(nodes, iperf_client=False):
         dns_status
     except NameError:
         dns_status = ''
-
-    if not no_ping:
-        no_ping = 'icmp ok'
-    else:
-        ping_errors_text = (
-            '; '.join(str(x) for x in no_ping)
-            if isinstance(no_ping, Iterable) and not isinstance(no_ping, str)
-            else no_ping
-        )
-        no_ping = 'icmp failed: {}'.format(ping_errors_text)
 
     if no_dns == ([], [], []):
         dns_status = ', dns ok'
@@ -895,11 +901,11 @@ def check_nodes(nodes, iperf_client=False):
 
     if cfg_check_local_hostname:
         check_status = '{}{}{}{}{}{}'.format(
-            port_status, bond_status, no_ping,
+            port_status, bond_status, icmp_message,
             str(no_hostname), str(dns_status), str(iperf_status))
     else:
         check_status = '{}{}{}{}{}'.format(
-            port_status, bond_status, no_ping,
+            port_status, bond_status, icmp_message,
             str(dns_status), str(iperf_status))
 
     if 'failed' in check_status:
@@ -907,7 +913,7 @@ def check_nodes(nodes, iperf_client=False):
     else:
         workload = 'active'
     safe_status(workload, check_status)
-    reactive_state = {'icmp': no_ping, 'dns': dns_status}
+    reactive_state = {'icmp': icmp_message, 'dns': dns_status}
     return reactive_state
 
 
