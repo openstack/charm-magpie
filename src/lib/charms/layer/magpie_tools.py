@@ -1099,6 +1099,9 @@ def parse_dig_yaml(output, dns_server, tries, timeout, is_reverse_query=False):
         if response['type'] == 'MESSAGE':
             response_data = response['message']['response_message_data']
             for answer in response_data.get('ANSWER_SECTION', []):
+                hookenv.log('DNS answer for "{}" received: {}'.format(
+                    response.get('QUESTION_SECTION',
+                            [""])[0], answer), 'DEBUG')
                 split_answer = answer.split(' ')
                 rec_type = split_answer[3]
                 rrdata = ' '.join(split_answer[4:])
