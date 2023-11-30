@@ -32,7 +32,7 @@ options:
     description: Number of DNS resolution attempts per query
     type: int
   dns_time:
-    default: 3
+    default: 5
     description: Timeout in seconds per DNS query try
     type: int
   lacp_passive_mode:
