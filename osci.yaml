@@ -6,24 +6,8 @@
       jobs:
       - focal
       - jammy
-# Lunar is set to optional due to issue with charmcraft when packing from Lunar
-      - lunar:
-          voting: false
-      - mantic:
-          voting: false
     vars:
       needs_charm_build: true
       charm_build_name: magpie
       build_type: charmcraft
       charmcraft_channel: 2.x/edge
-
-- job:
-    name: mantic
-    parent: func-target
-    dependencies:
-      - osci-lint
-      - name: tox-py310
-        soft: true
-      - charm-build
-    vars:
-      tox_extra_args: '-- mantic'
