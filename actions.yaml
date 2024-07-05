@@ -1,0 +1,89 @@
+iperf:
+  description: |
+    Run iperf
+  params:
+    units:
+      default: ""
+      type: string
+      description: Space separated list of units.  If empty string, will run against all peer units.
+    batch-time:
+      type: integer
+      default: 10
+      description: |
+        Maps to iperf -t option, time in seconds to transmit traffic
+    concurrency-progression:
+      type: string
+      default: "2 4 8"
+      description: |
+        Space separated list of concurrencies to use.  An equal amount of time will be spent on each concurrency.
+    total-run-time:
+      type: integer
+      default: 600
+      description: |
+        Total run time for iperf test in seconds, per target unit.
+    min-speed:
+      default: "0"
+      description: |
+        Minimum transfer speed in integer mbit/s required to pass the test. "0" disables.
+
+        This can also be set to an integer percentage value (eg. "80%"),
+        which will be interpreted as a percentage of the link speed.
+        Useful in mixed link speed environments.
+        Likewise, "0%" disables.
+      type: string
+
+info:
+  description: |
+    Retrieve all the information and data about the node as json data.
+  params:
+    required-mtu:
+      default: 0
+      type: integer
+      description: Desired MTU for all nodes - warn if the unit MTU is different (accounting for encapsulation).  0 disables mtu match checking.
+    bonds-to-check:
+      default: AUTO
+      description: Comma separated list of expected bonds or AUTO to check all available bonds.
+      type: string
+    lacp-passive-mode:
+      default: false
+      description: Set to true if switches are in LACP passive mode.
+      type: boolean
+
+ping:
+  description: |
+    Ping each of the related magpie units and return the results.
+  params:
+    timeout:
+      default: 2
+      description: Timeout in seconds per ICMP request
+      type: integer
+    tries:
+      default: 20
+      description: Number of ICMP packets per ping
+      type: integer
+    interval:
+      default: 0.05
+      description: Number of seconds to wait between sending each packet
+      type: number
+      minimum: 0
+    required-mtu:
+      default: 0
+      type: integer
+      description: Desired MTU for all nodes - warn if the unit MTU is different (accounting for encapsulation).  0 disables mtu match checking.
+
+dns:
+  description: |
+    Run dns checks against all peer nodes
+  params:
+    server:
+      default: ""
+      description: Provide a custom dns server.  Uses unit default DNS server by default.
+      type: string
+    tries:
+      default: 1
+      description: Number of DNS resolution attempts per query
+      type: integer
+    timeout:
+      default: 5
+      description: Timeout in seconds per DNS query try
+      type: integer

@@ -1,0 +1,5 @@
+options:
+  iperf_listen_cidr:
+    default: ""
+    type: string
+    description: Network cidr to use for iperf listener.  Changing this option will only take effect on a new deployment.

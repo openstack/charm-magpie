@@ -1,1 +1,21 @@
-src/metadata.yaml
+# This file populates the Overview on Charmhub.
+# See https://juju.is/docs/sdk/metadata-reference for a checklist and guidance.
+name: magpie
+summary: Magpie layer to test networking - ICMP and DNS
+maintainer: OpenStack Charmers <openstack-charmers@lists.ubuntu.com>
+description: |
+  Magpie will check ICMP, DNS, MTU and rx/tx speed between itself and any
+  peer units deployed - deploy more than one magpie unit for meaningful results.
+tags: [testing, CI]
+provides:
+  # https://charmhub.io/grafana-agent/libraries/cos_agent
+  cos-agent:
+    interface: cos_agent
+peers:
+  magpie:
+    interface: magpie2
+series:
+- focal
+- jammy
+- lunar
+- mantic

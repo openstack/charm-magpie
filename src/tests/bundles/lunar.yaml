@@ -1,7 +1,0 @@
-local_overlay_enabled: False
-
-series: lunar
-applications:
-  magpie:
-    num_units: 3
-    charm: ../../../magpie_ubuntu-23.04-amd64.charm
